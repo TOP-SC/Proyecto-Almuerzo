@@ -24,9 +24,19 @@ function App() {
   // Semana del menú: lunes a viernes (hora Argentina; mostramos "del lunes X al viernes Y")
   const getMenuWeek = () => {
     const now = new Date();
-    const arDateStr = now.toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }); // YYYY-MM-DD
-    const [y, mo, d] = arDateStr.split('-').map(Number);
-    const dayOfWeek = new Date(y, mo - 1, d).getDay(); // 0=Dom, 1=Lun, ..., 6=Sab
+    let y, mo, d;
+    try {
+      const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit' });
+      const parts = formatter.formatToParts(now);
+      y = parseInt(parts.find(p => p.type === 'year').value, 10);
+      mo = parseInt(parts.find(p => p.type === 'month').value, 10);
+      d = parseInt(parts.find(p => p.type === 'day').value, 10);
+    } catch (_) {
+      y = now.getFullYear();
+      mo = now.getMonth() + 1;
+      d = now.getDate();
+    }
+    const dayOfWeek = new Date(y, mo - 1, d).getDay();
     const daysToMonday = (8 - dayOfWeek) % 7;
     const weekStart = new Date(y, mo - 1, d + daysToMonday);
     const weekEnd = new Date(weekStart);
@@ -412,7 +422,7 @@ function App() {
                   key={menu.id}
                   onClick={() => handleMenuSelect(menu.id)}
                   className={`weekly-menu-item ${isCurrentlySelected ? 'selected ' + theme.selected : ''} p-1.5 cursor-pointer transition-all duration-300 aspect-[4/3] flex flex-col justify-between relative overflow-hidden`}
-                  style={{ borderColor: theme.shimmer, '--selected-color': theme.shimmer, '--card-color': theme.shimmer }}
+                  style={{ '--selected-color': theme.shimmer, '--card-color': theme.shimmer }}
                 >
                   <div className="absolute top-0 right-0 w-0 h-0 border-[18px] border-t-transparent border-b-transparent border-l-transparent opacity-50 pointer-events-none z-[1]" style={{ borderRightColor: theme.shimmer }} aria-hidden />
                   <div className="absolute inset-0 flex items-center justify-center z-0 pointer-events-none select-none opacity-[0.06]">
@@ -420,7 +430,7 @@ function App() {
                   </div>
                   <div className="flex flex-col items-center text-center relative z-10">
                     <div className="mb-1">
-                      <Icon className={`w-5 h-5 opacity-80 ${theme.accent}`} />
+                      <Icon className="w-5 h-5 opacity-80" style={{ color: theme.shimmer }} />
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-gray-200 mb-1">{menu.name}</h3>
@@ -429,7 +439,7 @@ function App() {
                     </div>
                   </div>
                   {isCurrentlySelected && (
-                    <div className={`flex items-center justify-center gap-1 mt-1 relative z-20 ${theme.accent}`}>
+                    <div className="flex items-center justify-center gap-1 mt-1 relative z-20" style={{ color: theme.shimmer }}>
                       <Check className="w-3 h-3" />
                       <span className="font-semibold text-xs">¡ELEGIDO!</span>
                     </div>
@@ -449,7 +459,7 @@ function App() {
                   key={menu.id}
                   onClick={() => handleMenuSelect(menu.id)}
                   className={`weekly-menu-item ${isCurrentlySelected ? 'selected ' + theme.selected : ''} p-1.5 cursor-pointer transition-all duration-300 aspect-[4/3] flex flex-col justify-between relative overflow-hidden`}
-                  style={{ borderColor: theme.shimmer, '--selected-color': theme.shimmer, '--card-color': theme.shimmer }}
+                  style={{ '--selected-color': theme.shimmer, '--card-color': theme.shimmer }}
                 >
                   <div className="absolute top-0 right-0 w-0 h-0 border-[18px] border-t-transparent border-b-transparent border-l-transparent opacity-50 pointer-events-none z-[1]" style={{ borderRightColor: theme.shimmer }} aria-hidden />
                   <div className="absolute inset-0 flex items-center justify-center z-0 pointer-events-none select-none opacity-[0.06]">
@@ -457,7 +467,7 @@ function App() {
                   </div>
                   <div className="flex flex-col items-center text-center relative z-10">
                     <div className="mb-1">
-                      <Icon className={`w-5 h-5 opacity-80 ${theme.accent}`} />
+                      <Icon className="w-5 h-5 opacity-80" style={{ color: theme.shimmer }} />
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-gray-200 mb-1">{menu.name}</h3>
@@ -466,7 +476,7 @@ function App() {
                     </div>
                   </div>
                   {isCurrentlySelected && (
-                    <div className={`flex items-center justify-center gap-1 mt-1 relative z-20 ${theme.accent}`}>
+                    <div className="flex items-center justify-center gap-1 mt-1 relative z-20" style={{ color: theme.shimmer }}>
                       <Check className="w-3 h-3" />
                       <span className="font-semibold text-xs">¡ELEGIDO!</span>
                     </div>
@@ -486,7 +496,7 @@ function App() {
                 <div
                   onClick={() => handleMenuSelect(menu.id)}
                   className={`weekly-menu-item ${isCurrentlySelected ? 'selected ' + theme.selected : ''} p-1 cursor-pointer transition-all duration-300 aspect-[6/1] flex items-center justify-between relative overflow-hidden`}
-                  style={{ borderColor: theme.shimmer, '--selected-color': theme.shimmer, '--card-color': theme.shimmer }}
+                  style={{ '--selected-color': theme.shimmer, '--card-color': theme.shimmer }}
                 >
                   <div className="absolute top-0 right-0 w-0 h-0 border-[18px] border-t-transparent border-b-transparent border-l-transparent opacity-50 pointer-events-none z-[1]" style={{ borderRightColor: theme.shimmer }} aria-hidden />
                   <div className="absolute inset-0 flex items-center justify-center z-0 pointer-events-none select-none opacity-[0.06]">
@@ -494,7 +504,7 @@ function App() {
                   </div>
                   <div className="flex items-center gap-2 relative z-10">
                     <div className="mb-1">
-                      <X className={`w-4 h-4 opacity-80 ${theme.accent}`} />
+                      <X className="w-4 h-4 opacity-80" style={{ color: theme.shimmer }} />
                     </div>
                     <div>
                       <h3 className="text-xs font-semibold text-gray-200 mb-1">{menu.name}</h3>
@@ -504,7 +514,7 @@ function App() {
                     </div>
                   </div>
                   {isCurrentlySelected && (
-                    <div className={`flex items-center gap-2 relative z-20 ${theme.accent}`}>
+                    <div className="flex items-center gap-2 relative z-20" style={{ color: theme.shimmer }}>
                       <Check className="w-3 h-3" />
                       <span className="font-semibold text-xs">¡ELEGIDO!</span>
                     </div>
@@ -708,6 +718,7 @@ function App() {
           backdrop-filter: blur(20px);
           border-width: 1px;
           border-style: solid;
+          border-color: var(--card-color, rgba(75, 85, 99, 0.6));
           border-radius: 16px;
           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
           position: relative;

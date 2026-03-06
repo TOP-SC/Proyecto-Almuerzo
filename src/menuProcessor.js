@@ -129,11 +129,17 @@ export const processMenuText = (menuText) => {
     
     const dayMenus = [];
     
-    // Agregar menús principales (1-5) - SOLO para el día actual
+    // Id por nombre de menú (1-7) para que los colores de las cards coincidan siempre
+    const menuIdFromName = (name) => {
+      const n = name?.replace(/MENU\s*/i, '');
+      const num = parseInt(n, 10);
+      if (num >= 1 && num <= 5) return num;
+      return dayMenus.length + 1;
+    };
     Object.keys(menuData).forEach(menuName => {
       if (menuData[menuName][day]) {
         dayMenus.push({
-          id: dayMenus.length + 1,
+          id: menuIdFromName(menuName),
           name: menuName,
           dish: menuData[menuName][day],
           category: menuTypes[getMenuTypeKey(menuName)]?.category || 'CLÁSICO',
@@ -142,18 +148,15 @@ export const processMenuText = (menuText) => {
       }
     });
     
-    // Validar que tengamos al menos los menús principales
     const expectedMenus = ['MENU 1', 'MENU 2', 'MENU 3', 'MENU 4', 'MENU 5'];
     const foundMenus = dayMenus.map(m => m.name);
     
-    expectedMenus.forEach((expectedMenu, index) => {
+    expectedMenus.forEach((expectedMenu) => {
       if (!foundMenus.includes(expectedMenu)) {
         console.log(`⚠️ Falta ${expectedMenu} para ${day}, agregando placeholder...`);
-        // Para MENU 5, siempre usar "Pollo todos los días"
         const dish = expectedMenu === 'MENU 5' ? 'Pollo todos los días' : 'No disponible esta semana';
-        
         dayMenus.push({
-          id: dayMenus.length + 1,
+          id: menuIdFromName(expectedMenu),
           name: expectedMenu,
           dish: dish,
           category: menuTypes[getMenuTypeKey(expectedMenu)]?.category || 'CLÁSICO',
