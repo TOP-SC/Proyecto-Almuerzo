@@ -564,9 +564,9 @@ function App() {
           {weeklyMenu.map((day, index) => {
             const selection = selections[index];
             const Icon = selection?.icon;
-            
+            const theme = selection ? (MENU_COLORS[selection.id] || MENU_COLORS[2]) : null;
             return (
-              <div key={index} className="weekly-table">
+              <div key={index} className="weekly-table border-l-4" style={theme ? { borderLeftColor: theme.shimmer } : { borderLeftColor: 'rgba(75, 85, 99, 0.5)' }}>
                 <div className="day-header">
                   <span>{day.day}</span>
                 </div>
@@ -574,7 +574,7 @@ function App() {
                   {selection ? (
                     <div>
                       <div className="flex items-center gap-2 mb-3">
-                        <Icon className="w-5 h-5 text-blue-400" />
+                        <Icon className={`w-5 h-5 ${theme?.accent || 'text-blue-400'}`} />
                         <div>
                           <h4 className="text-base font-light text-gray-200">
                             {selection.name}
@@ -589,7 +589,7 @@ function App() {
                       </p>
                       <button
                         onClick={() => handleEditDay(index)}
-                        className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
+                        className={`flex items-center gap-2 transition-colors ${theme ? theme.accent + ' hover:opacity-80' : 'text-blue-400 hover:text-blue-300'}`}
                       >
                         <Edit2 className="w-3 h-3" />
                         <span className="text-xs">Cambiar</span>
@@ -704,7 +704,8 @@ function App() {
         .weekly-menu-item {
           background: rgba(31, 41, 55, 0.3);
           backdrop-filter: blur(20px);
-          border: 1px solid;
+          border-width: 1px;
+          border-style: solid;
           border-radius: 16px;
           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
           position: relative;
