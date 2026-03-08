@@ -5,6 +5,7 @@ const APP_BASE_URL = 'https://top-proyecto-almuerzo.vercel.app';
 const SHEET_NAME = 'Hoja 1'; // cambia si tu pestaña se llama distinto
 const CARPETA_DRIVE_COCINA_ID = '1tiH7zZ8yZHWbiDD8e64basLJPAfxrrHm'; // Carpeta donde se genera el archivo para cocina
 const HOJA_RESPUESTAS = 'Respuestas';
+const COCINA_EMAIL = 'juan.billiot@sommiercenter.com'; // Email de la gente de viandas/cocina (confirmar)
 
 function generateToken_() {
   return Utilities.getUuid();
@@ -47,6 +48,29 @@ function generarTokensSiFaltan() {
   }
 }
 
+// Crea el HTML del mail para usuarios (diseño estético + botón)
+function crearHtmlMailUsuario(nombre, url) {
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;font-family:\'Segoe UI\',Tahoma,Geneva,Verdana,sans-serif;background-color:#f5f5f5;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:24px 0;">' +
+    '<tr><td align="center">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">' +
+    '<tr><td style="background:linear-gradient(135deg,#1a73e8 0%,#0d47a1 100%);padding:28px 32px;text-align:center;">' +
+    '<h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:600;">Menú Semanal</h1>' +
+    '<p style="margin:8px 0 0;color:rgba(255,255,255,0.9);font-size:14px;">Elegí tu menú para la semana</p>' +
+    '</td></tr>' +
+    '<tr><td style="padding:32px;">' +
+    '<p style="margin:0 0 16px;color:#333;font-size:16px;line-height:1.5;">Buen día <strong>' + nombre + '</strong>,</p>' +
+    '<p style="margin:0 0 24px;color:#555;font-size:15px;line-height:1.6;">Ya está disponible el menú semanal para que elijas tus opciones. Hacé clic en el botón para ingresar y seleccionar tu menú.</p>' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 24px;">' +
+    '<a href="' + url + '" style="display:inline-block;padding:14px 32px;background:#1a73e8;color:#ffffff !important;text-decoration:none;font-size:16px;font-weight:600;border-radius:8px;box-shadow:0 2px 4px rgba(26,115,232,0.3);">Elegir mi menú</a>' +
+    '</td></tr></table>' +
+    '<p style="margin:0;color:#777;font-size:13px;line-height:1.5;">Recordá que podés modificar tu elección hasta la fecha/hora límite establecida.</p>' +
+    '</td></tr>' +
+    '<tr><td style="padding:20px 32px;background:#f8f9fa;border-top:1px solid #eee;">' +
+    '<p style="margin:0;color:#888;font-size:12px;">Saludos,<br>RRHH / Organización de Almuerzos</p>' +
+    '</td></tr></table></td></tr></table></body></html>';
+}
+
 // ENVÍA UN MAIL A CADA USUARIO CON SU LINK PERSONALIZADO (incluye turno)
 function enviarLinksMenuSemanal() {
   const sheet = obtenerHojaUsuarios();
@@ -82,24 +106,13 @@ function enviarLinksMenuSemanal() {
       + '&turno=' + turno;
 
     const subject = 'Menú semanal disponible';
-    const body = [
-      'Buen día ' + nombre + ',',
-      '',
-      'Ya está disponible el menú semanal para que elijas tus opciones.',
-      'Por favor ingresá al siguiente enlace para seleccionar tu menú:',
-      '',
-      url,
-      '',
-      'Recordá que podés modificar tu elección hasta la fecha/hora límite establecida.',
-      '',
-      'Saludos,',
-      'RRHH / Organización de Almuerzos'
-    ].join('\n');
+    const htmlBody = crearHtmlMailUsuario(nombre, url);
 
     MailApp.sendEmail({
       to: email,
       subject: subject,
-      body: body
+      body: 'Buen día ' + nombre + ',\n\nYa está disponible el menú semanal. Ingresá al siguiente enlace para elegir tu menú:\n\n' + url + '\n\nSaludos,\nRRHH / Organización de Almuerzos',
+      htmlBody: htmlBody
     });
   });
 }
@@ -247,7 +260,14 @@ function doPost(e) {
   }
 }
 
-// --- Informe para cocina: crear archivo en Drive (ejecutar lunes 9:00 Argentina) ---
+// Extrae solo el número de menú de "MENU 1 - Milanesa" -> "Menu 1"
+function extraerNumeroMenu(celda) {
+  if (!celda || typeof celda !== 'string') return '';
+  var m = celda.match(/MENU\s*(\d+)/i);
+  return m ? 'Menu ' + m[1] : celda;
+}
+
+// --- Informe para cocina: crear archivo en Drive + email (ejecutar lunes 9:00 Argentina) ---
 function generarInformeSemanal() {
   var ahora = new Date();
   var tz = 'America/Argentina/Buenos_Aires';
@@ -278,28 +298,95 @@ function generarInformeSemanal() {
   var mes = meses[parseInt(parts[1], 10) - 1];
   var anio = parts[0];
   var nombreArchivo = 'Menus Semana ' + d1 + '-' + d2 + ' ' + mes + ' ' + anio;
+
+  // Contador de menús (todos los días, todos los usuarios)
+  var contadorMenus = {};
+  var todosLosDatos = turno1.concat(turno2);
+  todosLosDatos.forEach(function(row) {
+    for (var c = 5; c <= 9; c++) {
+      var num = extraerNumeroMenu(String(row[c] || ''));
+      if (num) {
+        contadorMenus[num] = (contadorMenus[num] || 0) + 1;
+      }
+    }
+  });
+
+  // 1. Crear Sheet en Drive (solo Semana, Nombre, Turno, Lunes, Martes, etc. con número de menú)
   var ssNew = SpreadsheetApp.create(nombreArchivo);
   var hoja = ssNew.getSheets()[0];
   hoja.setName('Resumen');
   var filas = [];
   filas.push(['TURNO 1 (13:00 - 14:00)']);
-  filas.push(['Nombre', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes']);
+  filas.push(['Semana', 'Nombre', 'Turno', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes']);
   turno1.forEach(function(row) {
-    filas.push([row[2], row[5], row[6], row[7], row[8], row[9]]);
+    filas.push([
+      row[0], row[2], row[4],
+      extraerNumeroMenu(row[5]), extraerNumeroMenu(row[6]), extraerNumeroMenu(row[7]),
+      extraerNumeroMenu(row[8]), extraerNumeroMenu(row[9])
+    ]);
   });
   filas.push([]);
   filas.push(['TURNO 2 (14:00 - 15:00)']);
-  filas.push(['Nombre', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes']);
+  filas.push(['Semana', 'Nombre', 'Turno', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes']);
   turno2.forEach(function(row) {
-    filas.push([row[2], row[5], row[6], row[7], row[8], row[9]]);
+    filas.push([
+      row[0], row[2], row[4],
+      extraerNumeroMenu(row[5]), extraerNumeroMenu(row[6]), extraerNumeroMenu(row[7]),
+      extraerNumeroMenu(row[8]), extraerNumeroMenu(row[9])
+    ]);
+  });
+  // Agregar contador al final del Sheet (cada fila debe tener 8 columnas)
+  filas.push(['', '', '', '', '', '', '', '']);
+  filas.push(['CONTADOR DE MENÚS', '', '', '', '', '', '', '']);
+  var keys = Object.keys(contadorMenus).sort();
+  keys.forEach(function(k) {
+    filas.push([k + ': ' + contadorMenus[k], '', '', '', '', '', '', '']);
   });
   if (filas.length > 0) {
-    hoja.getRange(1, 1, filas.length, 6).setValues(filas);
-    hoja.getRange(1, 1, 2, 6).setFontWeight('bold');
+    hoja.getRange(1, 1, filas.length, 8).setValues(filas);
+    hoja.getRange(1, 1, 2, 8).setFontWeight('bold');
   }
   var folder = DriveApp.getFolderById(CARPETA_DRIVE_COCINA_ID);
   var file = DriveApp.getFileById(ssNew.getId());
   folder.addFile(file);
   DriveApp.getRootFolder().removeFile(file);
   Logger.log('Informe creado: ' + nombreArchivo + ' en carpeta cocina.');
+
+  // 2. Enviar email a cocina (formato simplificado + contador)
+  var lineasEmail = [];
+  lineasEmail.push('Menú semanal - Semana del ' + d1 + ' al ' + d2 + ' de ' + mes + ' ' + anio);
+  lineasEmail.push('');
+  lineasEmail.push('TURNO 1 (13:00 - 14:00)');
+  lineasEmail.push('Semana | Nombre | Turno | Lunes | Martes | Miercoles | Jueves | Viernes');
+  lineasEmail.push('---');
+  turno1.forEach(function(row) {
+    lineasEmail.push([
+      row[0], row[2], row[4],
+      extraerNumeroMenu(row[5]), extraerNumeroMenu(row[6]), extraerNumeroMenu(row[7]),
+      extraerNumeroMenu(row[8]), extraerNumeroMenu(row[9])
+    ].join(' | '));
+  });
+  lineasEmail.push('');
+  lineasEmail.push('TURNO 2 (14:00 - 15:00)');
+  lineasEmail.push('Semana | Nombre | Turno | Lunes | Martes | Miercoles | Jueves | Viernes');
+  lineasEmail.push('---');
+  turno2.forEach(function(row) {
+    lineasEmail.push([
+      row[0], row[2], row[4],
+      extraerNumeroMenu(row[5]), extraerNumeroMenu(row[6]), extraerNumeroMenu(row[7]),
+      extraerNumeroMenu(row[8]), extraerNumeroMenu(row[9])
+    ].join(' | '));
+  });
+  lineasEmail.push('');
+  lineasEmail.push('---');
+  lineasEmail.push('CONTADOR DE MENÚS');
+  keys.forEach(function(k) {
+    lineasEmail.push(k + ': ' + contadorMenus[k]);
+  });
+  MailApp.sendEmail({
+    to: COCINA_EMAIL,
+    subject: 'Menú semanal viandas - ' + d1 + '-' + d2 + ' ' + mes + ' ' + anio,
+    body: lineasEmail.join('\n')
+  });
+  Logger.log('Email enviado a cocina.');
 }
