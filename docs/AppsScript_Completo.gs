@@ -337,7 +337,7 @@ function adminCancel(token, weekKey, nombre) {
   for (var r = 0; r < datos.length; r++) {
     if (String(datos[r][0]) === String(weekKey) && String(datos[r][1]) === String(token)) {
       sheet.getRange(2 + r, 11).setValue('anulado');
-      enviarCorreccionCocina('anulado', { nombre: nombre || datos[r][2], turno: datos[r][4], lunes: datos[r][5], martes: datos[r][6], miercoles: datos[r][7], jueves: datos[r][8], viernes: datos[r][9] }, null);
+      try { enviarCorreccionCocina('anulado', { nombre: nombre || datos[r][2], turno: datos[r][4], lunes: datos[r][5], martes: datos[r][6], miercoles: datos[r][7], jueves: datos[r][8], viernes: datos[r][9] }, null); } catch (e) { Logger.log('Corrección cocina: ' + e); }
       return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
     }
   }
@@ -355,11 +355,12 @@ function adminUpdate(token, weekKey, selections, nombre) {
       var antes = { lunes: row[5], martes: row[6], miercoles: row[7], jueves: row[8], viernes: row[9] };
       var nuevos = [];
       for (var i = 0; i < 5; i++) {
-        var s = (selections && selections[i]) ? (selections[i].name + ' - ' + selections[i].dish) : '';
+        var sel = (selections && selections[i]);
+        var s = sel ? ((sel.name || '') + ' - ' + (sel.dish || '')) : '';
         nuevos.push(s);
       }
       sheet.getRange(2 + r, 6, 2 + r, 10).setValues([nuevos]);
-      enviarCorreccionCocina('modificado', { nombre: nombre || row[2], turno: row[4], lunes: nuevos[0], martes: nuevos[1], miercoles: nuevos[2], jueves: nuevos[3], viernes: nuevos[4] }, antes);
+      try { enviarCorreccionCocina('modificado', { nombre: nombre || row[2], turno: row[4], lunes: nuevos[0], martes: nuevos[1], miercoles: nuevos[2], jueves: nuevos[3], viernes: nuevos[4] }, antes); } catch (e) { Logger.log('Corrección cocina: ' + e); }
       return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
     }
   }
@@ -375,7 +376,7 @@ function adminAdd(nombre, turno, weekKey, selections, weeklyMenu) {
     row[5 + i] = s;
   }
   sheet.appendRow(row);
-  enviarCorreccionCocina('agregado', { nombre: nombre || 'Invitado', turno: turno || '1', lunes: row[5], martes: row[6], miercoles: row[7], jueves: row[8], viernes: row[9] }, null);
+  try { enviarCorreccionCocina('agregado', { nombre: nombre || 'Invitado', turno: turno || '1', lunes: row[5], martes: row[6], miercoles: row[7], jueves: row[8], viernes: row[9] }, null); } catch (e) { Logger.log('Corrección cocina: ' + e); }
   return ContentService.createTextOutput(JSON.stringify({ ok: true, token: token })).setMimeType(ContentService.MimeType.JSON);
 }
 

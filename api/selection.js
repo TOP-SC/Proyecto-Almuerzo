@@ -1,4 +1,4 @@
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxe1O-qQNS9Fs0gxSm22sHfhmDQyGtxHn0Qjk0bvQqcdYF_qbQqdGNONfh9mHe2rcrF/exec'
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyoLc6_riQVmGI-XiJ-Er_3svaWx5dF59eRTov8ZsvhdhUHg7TOmbnr_1p_4kroTyXe/exec'
 
 async function getBody(req) {
   if (req.body != null && typeof req.body === 'object') return req.body

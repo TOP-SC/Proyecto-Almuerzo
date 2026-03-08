@@ -150,10 +150,15 @@ function AdminApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'admin_cancel', adminSecret, token: user.token, weekKey: user.semana || activeWeekKey || menuWeek.weekKey, nombre: user.nombre }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { ok: false, error: 'Respuesta inválida', raw: text.slice(0, 300) }; }
       if (data.ok) {
         setUsers(users.filter(u => u.token !== user.token));
-      } else setError(data.error || 'Error');
+      } else {
+        setError(data.error || 'Error');
+        setLastDebug({ raw: data.raw || text.slice(0, 300), status: res.status });
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -169,11 +174,16 @@ function AdminApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'admin_update', adminSecret, token: user.token, weekKey: user.semana || activeWeekKey || menuWeek.weekKey, nombre: user.nombre, selections }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { ok: false, error: 'Respuesta inválida', raw: text.slice(0, 300) }; }
       if (data.ok) {
         setEditingUser(null);
         loadUsers();
-      } else setError(data.error || 'Error');
+      } else {
+        setError(data.error || 'Error');
+        setLastDebug({ raw: data.raw || text.slice(0, 300), status: res.status });
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -205,12 +215,17 @@ function AdminApp() {
           weeklyMenu,
         }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { ok: false, error: 'Respuesta inválida', raw: text.slice(0, 300) }; }
       if (data.ok) {
         setShowAddForm(false);
         setAddForm({ nombre: '', turno: '1', selections: {} });
         loadUsers();
-      } else setError(data.error || 'Error');
+      } else {
+        setError(data.error || 'Error');
+        setLastDebug({ raw: data.raw || text.slice(0, 300), status: res.status });
+      }
     } catch (err) {
       setError(err.message);
     } finally {
