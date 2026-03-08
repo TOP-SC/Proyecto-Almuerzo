@@ -99,11 +99,11 @@ export const processMenuText = (menuText) => {
       
       const correctedDay = dayCorrections[day] || day;
       
-      // Para MENU 5, siempre usar "Pollo todos los días"
+      // Para MENU 5, siempre usar "Pollo"
       let finalDish = dish;
       if (currentMenu.name === 'MENU 5' && correctedDay) {
-        finalDish = 'Pollo todos los días';
-        console.log(`🍗️ MENU 5: Forzando "Pollo todos los días" para ${correctedDay}`);
+        finalDish = 'Pollo';
+        console.log(`🍗️ MENU 5: Forzando "Pollo" para ${correctedDay}`);
       }
       
       if (daysOfWeek.includes(correctedDay)) {
@@ -154,7 +154,7 @@ export const processMenuText = (menuText) => {
     expectedMenus.forEach((expectedMenu) => {
       if (!foundMenus.includes(expectedMenu)) {
         console.log(`⚠️ Falta ${expectedMenu} para ${day}, agregando placeholder...`);
-        const dish = expectedMenu === 'MENU 5' ? 'Pollo todos los días' : 'No disponible esta semana';
+        const dish = expectedMenu === 'MENU 5' ? 'Pollo' : 'No disponible esta semana';
         dayMenus.push({
           id: menuIdFromName(expectedMenu),
           name: expectedMenu,

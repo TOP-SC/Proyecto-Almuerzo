@@ -1,5 +1,7 @@
 // CONFIGURACIÓN BÁSICA
-const APP_BASE_URL = 'https://top-proyecto-almuerzo-27dq630nj-juanbilliot-6686s-projects.vercel.app';
+// IMPORTANTE: Usar la URL de PRODUCCIÓN de Vercel (la que se actualiza con cada push), no una URL de deployment/preview.
+// En Vercel: proyecto → Settings → Domains → la que sea tipo "tu-proyecto.vercel.app"
+const APP_BASE_URL = 'https://top-proyecto-almuerzo.vercel.app';
 const SHEET_NAME = 'Hoja 1'; // cambia si tu pestaña se llama distinto
 const CARPETA_DRIVE_COCINA_ID = '1tiH7zZ8yZHWbiDD8e64basLJPAfxrrHm'; // Carpeta donde se genera el archivo para cocina
 const HOJA_RESPUESTAS = 'Respuestas';
@@ -8,10 +10,17 @@ function generateToken_() {
   return Utilities.getUuid();
 }
 
+// Obtiene la hoja de usuarios (por nombre o la primera si no existe)
+function obtenerHojaUsuarios() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) sheet = ss.getSheets()[0];
+  return sheet;
+}
+
 // Genera tokens para todos los usuarios que no tengan uno en la columna "token"
 function generarTokensSiFaltan() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_NAME);
+  const sheet = obtenerHojaUsuarios();
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return;
 
@@ -27,22 +36,20 @@ function generarTokensSiFaltan() {
 
     if (!token) {
       token = generateToken_();
-      row[2] = token;
-      updates.push({ rowIndex: index, rowValues: row });
+      updates.push({ rowIndex: index, token: token });
     }
   });
 
   if (updates.length > 0) {
-    updates.forEach(u => {
-      sheet.getRange(2 + u.rowIndex, 1, 2 + u.rowIndex, 3).setValues([u.rowValues]);
+    updates.forEach(function(u) {
+      sheet.getRange(2 + u.rowIndex, 3).setValue(u.token);
     });
   }
 }
 
 // ENVÍA UN MAIL A CADA USUARIO CON SU LINK PERSONALIZADO (incluye turno)
 function enviarLinksMenuSemanal() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_NAME);
+  const sheet = obtenerHojaUsuarios();
 
   generarTokensSiFaltan();
 
