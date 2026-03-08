@@ -125,6 +125,15 @@ function doGet(e) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// Normaliza semana para comparación (Date o string -> YYYY-MM-DD)
+function normalizarSemana(val) {
+  if (!val) return '';
+  if (val instanceof Date) return Utilities.formatDate(val, Session.getScriptTimeZone() || 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd');
+  var s = String(val).trim();
+  var m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[1] + '-' + m[2] + '-' + m[3] : s;
+}
+
 // Obtiene o crea la hoja "Respuestas" y devuelve referencia (col 11 = Estado: activo | anulado)
 function obtenerHojaRespuestas() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -312,9 +321,9 @@ function adminList(weekKey) {
   }
   var numCols = Math.max(sheet.getLastColumn(), 11);
   var datos = sheet.getRange(2, 1, lastRow, numCols).getValues();
-  var wk = (weekKey || '').toString().trim();
+  var wk = normalizarSemana(weekKey || '');
   var filtrados = datos.filter(function(row) {
-    var rowSemana = String(row[0] || '').trim();
+    var rowSemana = normalizarSemana(row[0]);
     if (wk && rowSemana !== wk) return false;
     if (!row[1] && !row[2]) return false;
     return (row[10] || '').toString().toLowerCase() !== 'anulado';
@@ -323,41 +332,49 @@ function adminList(weekKey) {
     return {
       token: row[1], nombre: row[2], email: row[3], turno: row[4],
       lunes: row[5], martes: row[6], miercoles: row[7], jueves: row[8], viernes: row[9],
-      estado: row[10] || 'activo', semana: row[0]
+      estado: row[10] || 'activo', semana: normalizarSemana(row[0])
     };
   });
   return ContentService.createTextOutput(JSON.stringify({ ok: true, users: users, debug: { totalRows: datos.length, filtered: filtrados.length, weekKey: wk } })).setMimeType(ContentService.MimeType.JSON);
 }
 
 function adminCancel(token, weekKey, nombre) {
+  try {
   var sheet = obtenerHojaRespuestas();
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos' })).setMimeType(ContentService.MimeType.JSON).setResponseCode(400);
   var datos = sheet.getRange(2, 1, lastRow, 11).getValues();
+  var wk = normalizarSemana(weekKey);
   for (var r = 0; r < datos.length; r++) {
-    if (String(datos[r][0]) === String(weekKey) && String(datos[r][1]) === String(token)) {
+    if (normalizarSemana(datos[r][0]) === wk && String(datos[r][1]) === String(token)) {
       sheet.getRange(2 + r, 11).setValue('anulado');
       try { enviarCorreccionCocina('anulado', { nombre: nombre || datos[r][2], turno: datos[r][4], lunes: datos[r][5], martes: datos[r][6], miercoles: datos[r][7], jueves: datos[r][8], viernes: datos[r][9] }, null); } catch (e) { Logger.log('Corrección cocina: ' + e); }
       return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
     }
   }
   return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Usuario no encontrado' })).setMimeType(ContentService.MimeType.JSON).setResponseCode(404);
+  } catch (e) {
+    Logger.log('adminCancel: ' + e);
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON).setResponseCode(500);
+  }
 }
 
 function adminUpdate(token, weekKey, selections, nombre) {
+  try {
   var sheet = obtenerHojaRespuestas();
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos' })).setMimeType(ContentService.MimeType.JSON).setResponseCode(400);
   var datos = sheet.getRange(2, 1, lastRow, 11).getValues();
+  var wk = normalizarSemana(weekKey);
   for (var r = 0; r < datos.length; r++) {
-    if (String(datos[r][0]) === String(weekKey) && String(datos[r][1]) === String(token)) {
+    if (normalizarSemana(datos[r][0]) === wk && String(datos[r][1]) === String(token)) {
       var row = datos[r];
       var antes = { lunes: row[5], martes: row[6], miercoles: row[7], jueves: row[8], viernes: row[9] };
       var nuevos = [];
       for (var i = 0; i < 5; i++) {
         var sel = (selections && selections[i]);
-        var s = sel ? ((sel.name || '') + ' - ' + (sel.dish || '')) : '';
-        nuevos.push(s);
+        var s = sel && typeof sel === 'object' ? ((sel.name || '') + ' - ' + (sel.dish || '')) : '';
+        nuevos.push(s || '');
       }
       sheet.getRange(2 + r, 6, 2 + r, 10).setValues([nuevos]);
       try { enviarCorreccionCocina('modificado', { nombre: nombre || row[2], turno: row[4], lunes: nuevos[0], martes: nuevos[1], miercoles: nuevos[2], jueves: nuevos[3], viernes: nuevos[4] }, antes); } catch (e) { Logger.log('Corrección cocina: ' + e); }
@@ -365,19 +382,29 @@ function adminUpdate(token, weekKey, selections, nombre) {
     }
   }
   return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Usuario no encontrado' })).setMimeType(ContentService.MimeType.JSON).setResponseCode(404);
+  } catch (e) {
+    Logger.log('adminUpdate: ' + e);
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON).setResponseCode(500);
+  }
 }
 
 function adminAdd(nombre, turno, weekKey, selections, weeklyMenu) {
+  try {
   var sheet = obtenerHojaRespuestas();
   var token = 'invitado-' + Utilities.getUuid().toString().slice(0, 8);
-  var row = [weekKey, token, nombre || 'Invitado', '', turno || '1', '', '', '', '', '', 'activo'];
+  var row = [weekKey || '', token, nombre || 'Invitado', '', turno || '1', '', '', '', '', '', 'activo'];
   for (var i = 0; i < 5; i++) {
-    var s = (selections && selections[i]) ? (selections[i].name + ' - ' + selections[i].dish) : '';
+    var sel = (selections && selections[i]);
+    var s = sel && typeof sel === 'object' ? ((sel.name || '') + ' - ' + (sel.dish || '')) : '';
     row[5 + i] = s;
   }
   sheet.appendRow(row);
   try { enviarCorreccionCocina('agregado', { nombre: nombre || 'Invitado', turno: turno || '1', lunes: row[5], martes: row[6], miercoles: row[7], jueves: row[8], viernes: row[9] }, null); } catch (e) { Logger.log('Corrección cocina: ' + e); }
   return ContentService.createTextOutput(JSON.stringify({ ok: true, token: token })).setMimeType(ContentService.MimeType.JSON);
+  } catch (e) {
+    Logger.log('adminAdd: ' + e);
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON).setResponseCode(500);
+  }
 }
 
 function enviarCorreccionCocina(tipo, datos, antes) {
