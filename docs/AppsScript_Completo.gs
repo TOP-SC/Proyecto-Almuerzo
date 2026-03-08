@@ -6,6 +6,7 @@ const SHEET_NAME = 'Hoja 1'; // cambia si tu pestaña se llama distinto
 const CARPETA_DRIVE_COCINA_ID = '1tiH7zZ8yZHWbiDD8e64basLJPAfxrrHm'; // Carpeta donde se genera el archivo para cocina
 const HOJA_RESPUESTAS = 'Respuestas';
 const COCINA_EMAIL = 'juan.billiot@sommiercenter.com'; // Email de la gente de viandas/cocina (confirmar)
+const ADMIN_SECRET = 'maida2025'; // Contraseña admin - cambiar y usar variable de entorno en producción
 
 function generateToken_() {
   return Utilities.getUuid();
@@ -124,14 +125,17 @@ function doGet(e) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// Obtiene o crea la hoja "Respuestas" y devuelve referencia
+// Obtiene o crea la hoja "Respuestas" y devuelve referencia (col 11 = Estado: activo | anulado)
 function obtenerHojaRespuestas() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(HOJA_RESPUESTAS);
   if (!sheet) {
     sheet = ss.insertSheet(HOJA_RESPUESTAS);
-    sheet.getRange(1, 1, 1, 10).setValues([['Semana', 'Token', 'Nombre', 'Email', 'Turno', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes']]);
-    sheet.getRange(1, 1, 1, 10).setFontWeight('bold');
+    sheet.getRange(1, 1, 1, 11).setValues([['Semana', 'Token', 'Nombre', 'Email', 'Turno', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Estado']]);
+    sheet.getRange(1, 1, 1, 11).setFontWeight('bold');
+  } else if (sheet.getLastRow() >= 1 && sheet.getRange(1, 11).getValue() !== 'Estado') {
+    sheet.getRange(1, 11).setValue('Estado');
+    sheet.getRange(1, 11).setFontWeight('bold');
   }
   return sheet;
 }
@@ -139,7 +143,6 @@ function obtenerHojaRespuestas() {
 // Guarda o actualiza la respuesta en la hoja (una fila por usuario por semana)
 function guardarRespuestaEnSheet(data) {
   var sheet = obtenerHojaRespuestas();
-  var headers = sheet.getRange(1, 1, 1, 10).getValues()[0];
   var lastRow = sheet.getLastRow();
   var weekKey = data.weekKey || data.weekNumber || '';
   var token = (data.userToken || '').toString();
@@ -147,12 +150,12 @@ function guardarRespuestaEnSheet(data) {
   var email = data.userEmail || '';
   var turno = data.userTurn || '';
   var selections = data.selections || {};
-  var dias = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
   var row = [weekKey, token, nombre, email, turno];
   for (var i = 0; i < 5; i++) {
     var sel = selections[i];
     row.push(sel ? (sel.name + ' - ' + sel.dish) : '');
   }
+  row.push('activo');
   var dataRows = lastRow >= 2 ? sheet.getRange(2, 1, lastRow, 2).getValues() : [];
   var rowIndex = -1;
   for (var r = 0; r < dataRows.length; r++) {
@@ -162,13 +165,13 @@ function guardarRespuestaEnSheet(data) {
     }
   }
   if (rowIndex > 0) {
-    sheet.getRange(rowIndex, 1, rowIndex, 10).setValues([row]);
+    sheet.getRange(rowIndex, 1, rowIndex, 11).setValues([row]);
   } else {
     sheet.appendRow(row);
   }
 }
 
-// === WEB APP: recibe la selección final desde la app ===
+// === WEB APP: recibe la selección final desde la app (o acciones admin) ===
 function doPost(e) {
   try {
     if (!e.postData || !e.postData.contents) {
@@ -176,6 +179,11 @@ function doPost(e) {
     }
 
     var data = JSON.parse(e.postData.contents);
+    var action = data.action || 'submit';
+
+    if (action !== 'submit') {
+      return handleAdminAction(data);
+    }
 
     var userName   = data.userName   || 'Colaborador';
     var userEmail  = data.userEmail  || '';
@@ -260,6 +268,127 @@ function doPost(e) {
   }
 }
 
+// --- ADMIN: verifica contraseña y ejecuta acción ---
+function handleAdminAction(data) {
+  var secret = (data.adminSecret || '').toString();
+  if (secret !== ADMIN_SECRET) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Acceso denegado' }))
+      .setMimeType(ContentService.MimeType.JSON).setResponseCode(403);
+  }
+  var action = data.action;
+  if (action === 'admin_list') {
+    return adminList(data.weekKey);
+  }
+  if (action === 'admin_cancel') {
+    return adminCancel(data.token, data.weekKey, data.nombre);
+  }
+  if (action === 'admin_update') {
+    return adminUpdate(data.token, data.weekKey, data.selections, data.nombre);
+  }
+  if (action === 'admin_add') {
+    return adminAdd(data.nombre, data.turno, data.weekKey, data.selections, data.weeklyMenu);
+  }
+  return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Acción desconocida' }))
+    .setMimeType(ContentService.MimeType.JSON).setResponseCode(400);
+}
+
+function adminList(weekKey) {
+  var sheet = obtenerHojaRespuestas();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, users: [], debug: 'lastRow<2' })).setMimeType(ContentService.MimeType.JSON);
+  }
+  var numCols = Math.max(sheet.getLastColumn(), 11);
+  var datos = sheet.getRange(2, 1, lastRow, numCols).getValues();
+  var wk = (weekKey || '').toString().trim();
+  var filtrados = datos.filter(function(row) {
+    var rowSemana = String(row[0] || '').trim();
+    if (wk && rowSemana !== wk) return false;
+    if (!row[1] && !row[2]) return false;
+    return (row[10] || '').toString().toLowerCase() !== 'anulado';
+  });
+  var users = filtrados.map(function(row) {
+    return {
+      token: row[1], nombre: row[2], email: row[3], turno: row[4],
+      lunes: row[5], martes: row[6], miercoles: row[7], jueves: row[8], viernes: row[9],
+      estado: row[10] || 'activo', semana: row[0]
+    };
+  });
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, users: users, debug: { totalRows: datos.length, filtered: filtrados.length, weekKey: wk } })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function adminCancel(token, weekKey, nombre) {
+  var sheet = obtenerHojaRespuestas();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos' })).setMimeType(ContentService.MimeType.JSON).setResponseCode(400);
+  var datos = sheet.getRange(2, 1, lastRow, 11).getValues();
+  for (var r = 0; r < datos.length; r++) {
+    if (String(datos[r][0]) === String(weekKey) && String(datos[r][1]) === String(token)) {
+      sheet.getRange(2 + r, 11).setValue('anulado');
+      enviarCorreccionCocina('anulado', { nombre: nombre || datos[r][2], turno: datos[r][4], lunes: datos[r][5], martes: datos[r][6], miercoles: datos[r][7], jueves: datos[r][8], viernes: datos[r][9] }, null);
+      return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Usuario no encontrado' })).setMimeType(ContentService.MimeType.JSON).setResponseCode(404);
+}
+
+function adminUpdate(token, weekKey, selections, nombre) {
+  var sheet = obtenerHojaRespuestas();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos' })).setMimeType(ContentService.MimeType.JSON).setResponseCode(400);
+  var datos = sheet.getRange(2, 1, lastRow, 11).getValues();
+  for (var r = 0; r < datos.length; r++) {
+    if (String(datos[r][0]) === String(weekKey) && String(datos[r][1]) === String(token)) {
+      var row = datos[r];
+      var antes = { lunes: row[5], martes: row[6], miercoles: row[7], jueves: row[8], viernes: row[9] };
+      var nuevos = [];
+      for (var i = 0; i < 5; i++) {
+        var s = (selections && selections[i]) ? (selections[i].name + ' - ' + selections[i].dish) : '';
+        nuevos.push(s);
+      }
+      sheet.getRange(2 + r, 6, 2 + r, 10).setValues([nuevos]);
+      enviarCorreccionCocina('modificado', { nombre: nombre || row[2], turno: row[4], lunes: nuevos[0], martes: nuevos[1], miercoles: nuevos[2], jueves: nuevos[3], viernes: nuevos[4] }, antes);
+      return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Usuario no encontrado' })).setMimeType(ContentService.MimeType.JSON).setResponseCode(404);
+}
+
+function adminAdd(nombre, turno, weekKey, selections, weeklyMenu) {
+  var sheet = obtenerHojaRespuestas();
+  var token = 'invitado-' + Utilities.getUuid().toString().slice(0, 8);
+  var row = [weekKey, token, nombre || 'Invitado', '', turno || '1', '', '', '', '', '', 'activo'];
+  for (var i = 0; i < 5; i++) {
+    var s = (selections && selections[i]) ? (selections[i].name + ' - ' + selections[i].dish) : '';
+    row[5 + i] = s;
+  }
+  sheet.appendRow(row);
+  enviarCorreccionCocina('agregado', { nombre: nombre || 'Invitado', turno: turno || '1', lunes: row[5], martes: row[6], miercoles: row[7], jueves: row[8], viernes: row[9] }, null);
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, token: token })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function enviarCorreccionCocina(tipo, datos, antes) {
+  var lineas = ['CORRECCIÓN - Menú semanal', '', 'Tipo: ' + tipo.toUpperCase(), 'Nombre: ' + datos.nombre, 'Turno: ' + datos.turno, '', 'Menú actual:'];
+  lineas.push('Lunes: ' + (datos.lunes || '-'));
+  lineas.push('Martes: ' + (datos.martes || '-'));
+  lineas.push('Miércoles: ' + (datos.miercoles || '-'));
+  lineas.push('Jueves: ' + (datos.jueves || '-'));
+  lineas.push('Viernes: ' + (datos.viernes || '-'));
+  if (antes && tipo === 'modificado') {
+    lineas.push('', 'Antes:');
+    lineas.push('Lunes: ' + (antes.lunes || '-'));
+    lineas.push('Martes: ' + (antes.martes || '-'));
+    lineas.push('Miércoles: ' + (antes.miercoles || '-'));
+    lineas.push('Jueves: ' + (antes.jueves || '-'));
+    lineas.push('Viernes: ' + (antes.viernes || '-'));
+  }
+  MailApp.sendEmail({
+    to: COCINA_EMAIL,
+    subject: 'Corrección menú - ' + tipo + ' - ' + datos.nombre,
+    body: lineas.join('\n')
+  });
+}
+
 // Extrae solo el número de menú de "MENU 1 - Milanesa" -> "Menu 1"
 function extraerNumeroMenu(celda) {
   if (!celda || typeof celda !== 'string') return '';
@@ -283,8 +412,13 @@ function generarInformeSemanal() {
     Logger.log('Sin datos en Respuestas.');
     return;
   }
-  var datos = sheet.getRange(2, 1, sheet.getLastRow(), 10).getValues();
-  var semanaFiltrada = datos.filter(function(row) { return String(row[0]) === strFecha; });
+  var numCols = sheet.getLastColumn();
+  var datos = sheet.getRange(2, 1, sheet.getLastRow(), Math.max(numCols, 11)).getValues();
+  var semanaFiltrada = datos.filter(function(row) {
+    if (String(row[0]) !== strFecha) return false;
+    var estado = (row[10] || '').toString().toLowerCase();
+    return estado !== 'anulado';
+  });
   if (semanaFiltrada.length === 0) {
     Logger.log('Sin respuestas para la semana ' + strFecha);
     return;
