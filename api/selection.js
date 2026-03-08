@@ -37,7 +37,12 @@ export default async function handler(req, res) {
     try {
       data = JSON.parse(text)
     } catch {
-      data = { ok: false, error: 'El backend no devolvió JSON válido', raw: text.slice(0, 500) }
+      let errMsg = 'El backend no devolvió JSON válido'
+      if (text.trim().startsWith('<!')) {
+        const m = text.match(/class="errorMessage"[^>]*>([^<]+)/) || text.match(/Exception:[^<]*/i)
+        if (m) errMsg = 'Error Apps Script: ' + (m[1] || m[0]).trim().slice(0, 150)
+      }
+      data = { ok: false, error: errMsg, raw: text.slice(0, 500) }
     }
     const status = data.ok === false && !response.ok ? 500 : (response.ok ? 200 : 500)
     res.status(status).json(data)

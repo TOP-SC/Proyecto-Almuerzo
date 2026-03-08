@@ -183,7 +183,16 @@ function guardarRespuestaEnSheet(data) {
 // === WEB APP: recibe la selección final desde la app (o acciones admin) ===
 function doPost(e) {
   try {
-    if (!e.postData || !e.postData.contents) {
+    return doPostImpl(e);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + (err && err.message ? err.message : String(err)) }))
+      .setMimeType(ContentService.MimeType.JSON).setResponseCode(500);
+  }
+}
+
+function doPostImpl(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
       throw new Error('Sin cuerpo en la petición');
     }
 
