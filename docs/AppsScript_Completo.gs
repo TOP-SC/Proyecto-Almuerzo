@@ -186,7 +186,7 @@ function doPost(e) {
     return doPostImpl(e);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + (err && err.message ? err.message : String(err)) }))
-      .setMimeType(ContentService.MimeType.JSON).setResponseCode(500);
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -282,7 +282,6 @@ function doPostImpl(e) {
     return ContentService
       .createTextOutput(JSON.stringify({ ok: false, error: err.message }))
       .setMimeType(ContentService.MimeType.JSON)
-      .setResponseCode(500);
   }
 }
 
@@ -294,7 +293,7 @@ function handleAdminAction(data) {
       ok: false,
       error: 'Acceso denegado. Contraseña incorrecta.'
     }))
-      .setMimeType(ContentService.MimeType.JSON).setResponseCode(403);
+      .setMimeType(ContentService.MimeType.JSON);
   }
   try {
     var action = data.action;
@@ -314,11 +313,11 @@ function handleAdminAction(data) {
       return adminAdd(data.nombre, data.turno, data.weekKey, data.selections, data.weeklyMenu);
     }
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Acción desconocida' }))
-      .setMimeType(ContentService.MimeType.JSON).setResponseCode(400);
+      .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     Logger.log('handleAdminAction error: ' + err);
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error en admin: ' + err.message }))
-      .setMimeType(ContentService.MimeType.JSON).setResponseCode(500);
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -351,7 +350,7 @@ function adminCancel(token, weekKey, nombre) {
   try {
   var sheet = obtenerHojaRespuestas();
   var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos' })).setMimeType(ContentService.MimeType.JSON).setResponseCode(400);
+  if (lastRow < 2) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos' })).setMimeType(ContentService.MimeType.JSON);
   var datos = sheet.getRange(2, 1, lastRow, 11).getValues();
   var wk = normalizarSemana(weekKey);
   for (var r = 0; r < datos.length; r++) {
@@ -361,10 +360,10 @@ function adminCancel(token, weekKey, nombre) {
       return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
     }
   }
-  return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Usuario no encontrado' })).setMimeType(ContentService.MimeType.JSON).setResponseCode(404);
+  return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Usuario no encontrado' })).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
     Logger.log('adminCancel: ' + e);
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON).setResponseCode(500);
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -372,7 +371,7 @@ function adminUpdate(token, weekKey, selections, nombre) {
   try {
   var sheet = obtenerHojaRespuestas();
   var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos' })).setMimeType(ContentService.MimeType.JSON).setResponseCode(400);
+  if (lastRow < 2) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos' })).setMimeType(ContentService.MimeType.JSON);
   var datos = sheet.getRange(2, 1, lastRow, 11).getValues();
   var wk = normalizarSemana(weekKey);
   for (var r = 0; r < datos.length; r++) {
@@ -385,15 +384,15 @@ function adminUpdate(token, weekKey, selections, nombre) {
         var s = sel && typeof sel === 'object' ? ((sel.name || '') + ' - ' + (sel.dish || '')) : '';
         nuevos.push(s || '');
       }
-      sheet.getRange(2 + r, 6, 2 + r, 10).setValues([nuevos]);
+      sheet.getRange(2 + r, 6, 1, 5).setValues([nuevos]);
       try { enviarCorreccionCocina('modificado', { nombre: nombre || row[2], turno: row[4], lunes: nuevos[0], martes: nuevos[1], miercoles: nuevos[2], jueves: nuevos[3], viernes: nuevos[4] }, antes); } catch (e) { Logger.log('Corrección cocina: ' + e); }
       return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
     }
   }
-  return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Usuario no encontrado' })).setMimeType(ContentService.MimeType.JSON).setResponseCode(404);
+  return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Usuario no encontrado' })).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
     Logger.log('adminUpdate: ' + e);
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON).setResponseCode(500);
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -412,7 +411,7 @@ function adminAdd(nombre, turno, weekKey, selections, weeklyMenu) {
   return ContentService.createTextOutput(JSON.stringify({ ok: true, token: token })).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
     Logger.log('adminAdd: ' + e);
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON).setResponseCode(500);
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -572,4 +571,28 @@ function generarInformeSemanal() {
     body: lineasEmail.join('\n')
   });
   Logger.log('Email enviado a cocina.');
+}
+
+// PRUEBA: Ejecutar desde el editor (Run > testAdminUpdate_) para ver el error en la consola
+function testAdminUpdate_() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_RESPUESTAS);
+  if (!sheet || sheet.getLastRow() < 2) {
+    Logger.log('No hay datos en Respuestas');
+    return;
+  }
+  var row = sheet.getRange(2, 1, 2, 11).getValues()[0];
+  var token = String(row[1]);
+  var weekKey = normalizarSemana(row[0]);
+  var selections = [
+    { name: 'MENU 1', dish: 'Prueba' },
+    null, null, null, null
+  ];
+  Logger.log('Probando con token=' + token + ' weekKey=' + weekKey);
+  try {
+    var result = adminUpdate(token, weekKey, selections, row[2]);
+    Logger.log('OK: ' + result.getContent());
+  } catch (e) {
+    Logger.log('ERROR: ' + e.message);
+    Logger.log('Stack: ' + e.stack);
+  }
 }
