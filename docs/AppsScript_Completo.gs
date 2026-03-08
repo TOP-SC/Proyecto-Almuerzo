@@ -179,7 +179,7 @@ function doPost(e) {
     }
 
     var data = JSON.parse(e.postData.contents);
-    var action = data.action || 'submit';
+    var action = (data && data.action) ? data.action : 'submit';
 
     if (action !== 'submit') {
       return handleAdminAction(data);
@@ -280,6 +280,9 @@ function handleAdminAction(data) {
   }
   try {
     var action = data.action;
+    if (action === 'admin_ping') {
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, message: 'pong' })).setMimeType(ContentService.MimeType.JSON);
+    }
     if (action === 'admin_list') {
       return adminList(data.weekKey);
     }

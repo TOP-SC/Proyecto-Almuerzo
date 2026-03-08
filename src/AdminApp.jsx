@@ -58,6 +58,7 @@ function AdminApp() {
   const [actionLoading, setActionLoading] = useState(null);
   const [weekKeyOverride, setWeekKeyOverride] = useState('');
   const [lastDebug, setLastDebug] = useState(null);
+  const [connectionOk, setConnectionOk] = useState(null);
 
   const menuWeek = getMenuWeek();
   const activeWeekKey = weekKeyOverride.trim() || null;
@@ -116,7 +117,7 @@ function AdminApp() {
       } else {
         const errMsg = data.error || 'Sin mensaje del servidor';
         console.error('Admin API error:', { status: res.status, data });
-        setLastDebug({ status: res.status, error: data.error, full: data });
+        setLastDebug({ status: res.status, error: data.error, raw: data.raw, full: data });
         let fullMsg = errMsg + ' (status: ' + res.status + ')';
         if (errMsg.includes('Contraseña incorrecta')) {
           fullMsg += ' — Verificá: 1) Contraseña correcta. 2) En Apps Script: Guardar + Desplegar > Gestionar implementaciones > Editar > Nueva versión.';
@@ -268,6 +269,33 @@ function AdminApp() {
             title="Vacío=todas. Ej: 2026-03-09"
           />
           <button onClick={loadUsers} className="text-sm text-blue-600 hover:underline">Actualizar</button>
+          <button
+            onClick={async () => {
+              setError('');
+              setConnectionOk(null);
+              try {
+                const res = await fetch(API_URL, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'admin_ping', adminSecret }),
+                });
+                const data = await res.json();
+                if (data.ok) {
+                  setConnectionOk(true);
+                  setTimeout(() => setConnectionOk(null), 3000);
+                } else {
+                  setError(data.error || 'Error');
+                  setLastDebug({ raw: data.raw, status: res.status });
+                }
+              } catch (e) {
+                setError(e.message || 'Error');
+              }
+            }}
+            className="text-sm text-slate-600 hover:underline"
+          >
+            Probar conexión
+          </button>
+          {connectionOk && <span className="text-sm text-green-600">✓ Conexión OK</span>}
         </div>
         <button
           onClick={() => { sessionStorage.removeItem('adminSecret'); setIsAuth(false); }}
