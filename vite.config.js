@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const APPS_SCRIPT_PATH = '/macros/s/AKfycbzY4lMSBnRxefVobR0Ff33moGw7E3yZv43TG5rf587UQ1EtTTZ4oQPcsIJvCDuaBE87/exec'
+const APPS_SCRIPT_PATH = '/macros/s/AKfycbxe1O-qQNS9Fs0gxSm22sHfhmDQyGtxHn0Qjk0bvQqcdYF_qbQqdGNONfh9mHe2rcrF/exec'
 
 // https://vitejs.dev/config/
 export default defineConfig({

@@ -6,7 +6,7 @@ const SHEET_NAME = 'Hoja 1'; // cambia si tu pestaña se llama distinto
 const CARPETA_DRIVE_COCINA_ID = '1tiH7zZ8yZHWbiDD8e64basLJPAfxrrHm'; // Carpeta donde se genera el archivo para cocina
 const HOJA_RESPUESTAS = 'Respuestas';
 const COCINA_EMAIL = 'juan.billiot@sommiercenter.com'; // Email de la gente de viandas/cocina (confirmar)
-const ADMIN_SECRET = 'maida2025'; // Contraseña admin - cambiar y usar variable de entorno en producción
+const ADMIN_SECRET = 'Admin.2026'; // Contraseña admin
 
 function generateToken_() {
   return Utilities.getUuid();
@@ -85,7 +85,7 @@ function enviarLinksMenuSemanal() {
   const data = sheet.getRange(2, 1, lastRow, 4).getValues();
 
   const TEST_EMAILS = [
-    'giselle.morbello@sommiercenter.com',
+    'juan.billiot@sommiercenter.com',
   ];
 
   data.forEach((row) => {
@@ -270,26 +270,35 @@ function doPost(e) {
 
 // --- ADMIN: verifica contraseña y ejecuta acción ---
 function handleAdminAction(data) {
-  var secret = (data.adminSecret || '').toString();
+  var secret = (data.adminSecret || '').toString().trim();
   if (secret !== ADMIN_SECRET) {
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Acceso denegado' }))
+    return ContentService.createTextOutput(JSON.stringify({
+      ok: false,
+      error: 'Acceso denegado. Contraseña incorrecta.'
+    }))
       .setMimeType(ContentService.MimeType.JSON).setResponseCode(403);
   }
-  var action = data.action;
-  if (action === 'admin_list') {
-    return adminList(data.weekKey);
+  try {
+    var action = data.action;
+    if (action === 'admin_list') {
+      return adminList(data.weekKey);
+    }
+    if (action === 'admin_cancel') {
+      return adminCancel(data.token, data.weekKey, data.nombre);
+    }
+    if (action === 'admin_update') {
+      return adminUpdate(data.token, data.weekKey, data.selections, data.nombre);
+    }
+    if (action === 'admin_add') {
+      return adminAdd(data.nombre, data.turno, data.weekKey, data.selections, data.weeklyMenu);
+    }
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Acción desconocida' }))
+      .setMimeType(ContentService.MimeType.JSON).setResponseCode(400);
+  } catch (err) {
+    Logger.log('handleAdminAction error: ' + err);
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error en admin: ' + err.message }))
+      .setMimeType(ContentService.MimeType.JSON).setResponseCode(500);
   }
-  if (action === 'admin_cancel') {
-    return adminCancel(data.token, data.weekKey, data.nombre);
-  }
-  if (action === 'admin_update') {
-    return adminUpdate(data.token, data.weekKey, data.selections, data.nombre);
-  }
-  if (action === 'admin_add') {
-    return adminAdd(data.nombre, data.turno, data.weekKey, data.selections, data.weeklyMenu);
-  }
-  return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Acción desconocida' }))
-    .setMimeType(ContentService.MimeType.JSON).setResponseCode(400);
 }
 
 function adminList(weekKey) {

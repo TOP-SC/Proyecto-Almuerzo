@@ -8,14 +8,15 @@ Guía para verificar que todo esté configurado antes de desplegar la actualizac
 
 1. Abrí el proyecto de Apps Script vinculado al Spreadsheet.
 2. **Implementar** → **Implementaciones** → verificá que haya una implementación activa tipo "Aplicación web".
-3. Si no existe o querés actualizar:
+3. **IMPORTANTE – Si cambiaste el script (ej. contraseña admin):** Guardá el archivo y luego **Implementar** → **Gestionar implementaciones** → **Editar** (ícono lápiz) → **Versión** → **Nueva versión** → **Desplegar**. Sin esto, la Web App sigue usando la versión anterior.
+4. Si no existe implementación o querés crear una nueva:
    - **Implementar** → **Nueva implementación**
    - Tipo: **Aplicación web**
    - Descripción: "Menú semanal - recepción de pedidos"
    - Ejecutar como: **Yo**
    - Quién tiene acceso: **Cualquier persona** (para que la app en Vercel pueda enviar POST)
    - **Implementar**
-4. Copiá la **URL de la implementación** (ej: `https://script.google.com/macros/s/XXXXX/exec`).
+5. Copiá la **URL de la implementación** (ej: `https://script.google.com/macros/s/XXXXX/exec`).
 
 ---
 

@@ -104,14 +104,25 @@ function AdminApp() {
       try {
         data = JSON.parse(text);
       } catch (_) {
-        setError('La API devolvió HTML en lugar de JSON. ¿Estás en localhost? El proxy puede fallar. Probá en Vercel después del push.');
-        setLastDebug({ raw: text.slice(0, 100) });
+        setError('La API devolvió HTML en lugar de JSON. ¿El script está desplegado correctamente?');
+        setLastDebug({ raw: text.slice(0, 300), status: res.status });
         setUsers([]);
         return;
       }
-      setLastDebug(data.debug || null);
-      if (data.ok) setUsers(data.users || []);
-      else setError(data.error || 'Error al cargar');
+      setLastDebug(data.debug || (data.error ? { error: data.error } : null));
+      if (data.ok) {
+        setUsers(data.users || []);
+        setLastDebug(data.debug || null);
+      } else {
+        const errMsg = data.error || 'Sin mensaje del servidor';
+        console.error('Admin API error:', { status: res.status, data });
+        setLastDebug({ status: res.status, error: data.error, full: data });
+        let fullMsg = errMsg + ' (status: ' + res.status + ')';
+        if (errMsg.includes('Contraseña incorrecta')) {
+          fullMsg += ' — Verificá: 1) Contraseña correcta. 2) En Apps Script: Guardar + Desplegar > Gestionar implementaciones > Editar > Nueva versión.';
+        }
+        setError(fullMsg);
+      }
     } catch (err) {
       setError(err.message || 'Error de conexión');
     } finally {
@@ -268,9 +279,17 @@ function AdminApp() {
 
       <main className="p-4 max-w-4xl mx-auto">
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex justify-between items-center">
-            {error}
-            <button onClick={() => setError('')} className="text-red-500 hover:text-red-700">×</button>
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div className="flex justify-between items-start gap-2">
+              <span className="flex-1">{error}</span>
+              <button onClick={() => setError('')} className="text-red-500 hover:text-red-700 shrink-0">×</button>
+            </div>
+            {lastDebug && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs text-red-600 hover:underline">Ver detalles técnicos</summary>
+                <pre className="mt-1 p-2 bg-red-100 rounded text-xs overflow-auto max-h-24">{JSON.stringify(lastDebug, null, 2)}</pre>
+              </details>
+            )}
           </div>
         )}
 

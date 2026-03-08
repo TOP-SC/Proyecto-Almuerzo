@@ -3,7 +3,7 @@
 ## Acceso
 
 - **URL:** `https://top-proyecto-almuerzo.vercel.app/admin`
-- **Contraseña:** Configurada en Apps Script como `ADMIN_SECRET` (actualmente `maida2025`)
+- **Contraseña:** Configurada en Apps Script como `ADMIN_SECRET`
 
 ## Funciones
 
@@ -18,7 +18,7 @@
 En `docs/AppsScript_Completo.gs`, línea ~9:
 
 ```javascript
-const ADMIN_SECRET = 'maida2025'; // Cambiar por tu contraseña
+const ADMIN_SECRET = 'Admin.2026'; // Contraseña admin
 ```
 
 Pegar el script actualizado en Apps Script y guardar.
