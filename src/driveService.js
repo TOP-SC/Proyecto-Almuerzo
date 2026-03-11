@@ -4,12 +4,11 @@ import { processMenuText } from './menuProcessor.js';
 
 export class DriveService {
   constructor() {
-    // CONFIGURADO CON TU ENLACE DE GOOGLE DRIVE
-    // Original: https://docs.google.com/document/d/1I0rImxiunxeQWVqs0ZTsx3fftwdt0rF9ZJnLPyN9rfE/edit?usp=sharing
-    // Export: https://docs.google.com/document/d/1I0rImxiunxeQWVqs0ZTsx3fftwdt0rF9ZJnLPyN9rfE/export?format=txt
+    // MENU-SEMANAL: La app toma los datos de este archivo.
+    // Ellos solo modifican este Doc/archivo y la app muestra el menú actualizado.
+    // Google Docs (export txt): https://docs.google.com/document/d/ID/edit → /export?format=txt
     this.DOC_URL = "https://docs.google.com/document/d/1I0rImxiunxeQWVqs0ZTsx3fftwdt0rF9ZJnLPyN9rfE/export?format=txt";
-    
-    // Backup local mientras configuramos Drive
+    // Backup local si Drive falla
     this.LOCAL_URL = "/menu-semanal.txt";
   }
 

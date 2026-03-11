@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, LogOut, Search, XCircle, Edit2, UserPlus, Check, Loader2 } from 'lucide-react';
+import { Shield, LogOut, Search, XCircle, Edit2, UserPlus, Check, Loader2, LayoutDashboard, Users, Mail, FileText, PieChart, Send } from 'lucide-react';
 import { DriveService } from './driveService.js';
+import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/selection';
+const APP_BASE_URL = import.meta.env.VITE_APP_URL || 'https://proyecto-almuerzo.vercel.app';
 
 function getMenuWeek() {
   const now = new Date();
@@ -43,12 +45,15 @@ function parseMenuStr(str) {
   return { id: parseInt(m[1], 10), name: 'MENU ' + m[1], dish: m[2]?.trim() || '', category: '' };
 }
 
+const COLORS = ['#1a73e8', '#34a853', '#fbbc04', '#ea4335', '#8b5cf6', '#06b6d4', '#94a3b8'];
+
 function AdminApp() {
   const [isAuth, setIsAuth] = useState(false);
   const [password, setPassword] = useState('');
   const [adminSecret, setAdminSecret] = useState('');
   const [error, setError] = useState('');
   const [users, setUsers] = useState([]);
+  const [empresaUsers, setEmpresaUsers] = useState([]);
   const [weeklyMenu, setWeeklyMenu] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -59,9 +64,10 @@ function AdminApp() {
   const [weekKeyOverride, setWeekKeyOverride] = useState('');
   const [lastDebug, setLastDebug] = useState(null);
   const [connectionOk, setConnectionOk] = useState(null);
+  const [activeView, setActiveView] = useState('listado');
 
   const menuWeek = getMenuWeek();
-  const activeWeekKey = weekKeyOverride.trim() || null;
+  const activeWeekKey = weekKeyOverride.trim() || menuWeek.weekKey;
 
   useEffect(() => {
     const stored = sessionStorage.getItem('adminSecret');
@@ -75,8 +81,29 @@ function AdminApp() {
     if (isAuth && adminSecret) {
       loadUsers();
       loadMenu();
+      loadEmpresaUsers();
     }
   }, [isAuth, adminSecret]);
+
+  useEffect(() => {
+    if (isAuth && activeView === 'dashboard') {
+      loadEmpresaUsers();
+    }
+  }, [isAuth, activeView]);
+
+  const loadEmpresaUsers = async () => {
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'admin_list_empresa', adminSecret }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok && data.users) {
+        setEmpresaUsers(data.users);
+      }
+    } catch (_) {}
+  };
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -98,7 +125,7 @@ function AdminApp() {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'admin_list', adminSecret, weekKey: activeWeekKey || '' }),
+        body: JSON.stringify({ action: 'admin_list', adminSecret, weekKey: weekKeyOverride.trim() || '' }),
       });
       const text = await res.text();
       let data;
@@ -113,16 +140,10 @@ function AdminApp() {
       setLastDebug(data.debug || (data.error ? { error: data.error } : null));
       if (data.ok) {
         setUsers(data.users || []);
-        setLastDebug(data.debug || null);
       } else {
         const errMsg = data.error || 'Sin mensaje del servidor';
-        console.error('Admin API error:', { status: res.status, data });
-        setLastDebug({ status: res.status, error: data.error, raw: data.raw, full: data });
-        let fullMsg = errMsg + ' (status: ' + res.status + ')';
-        if (errMsg.includes('Contraseña incorrecta')) {
-          fullMsg += ' — Verificá: 1) Contraseña correcta. 2) En Apps Script: Guardar + Desplegar > Gestionar implementaciones > Editar > Nueva versión.';
-        }
-        setError(fullMsg);
+        setLastDebug({ status: res.status, error: data.error });
+        setError(errMsg);
       }
     } catch (err) {
       setError(err.message || 'Error de conexión');
@@ -154,10 +175,9 @@ function AdminApp() {
       let data;
       try { data = JSON.parse(text); } catch { data = { ok: false, error: 'Respuesta inválida', raw: text.slice(0, 300) }; }
       if (data.ok) {
-        setUsers(users.filter(u => u.token !== user.token));
+        setUsers(users.filter(u => !(u.token === user.token && u.semana === user.semana)));
       } else {
         setError(data.error || 'Error');
-        setLastDebug({ raw: data.raw || text.slice(0, 300), status: res.status });
       }
     } catch (err) {
       setError(err.message);
@@ -166,13 +186,13 @@ function AdminApp() {
     }
   };
 
-  const handleUpdate = async (user, selections) => {
+  const handleUpdate = async (user, selections, details = {}) => {
     setActionLoading(user.token);
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'admin_update', adminSecret, token: user.token, weekKey: user.semana || activeWeekKey || menuWeek.weekKey, nombre: user.nombre, selections }),
+        body: JSON.stringify({ action: 'admin_update', adminSecret, token: user.token, weekKey: user.semana || activeWeekKey || menuWeek.weekKey, nombre: user.nombre, selections, details }),
       });
       const text = await res.text();
       let data;
@@ -182,7 +202,6 @@ function AdminApp() {
         loadUsers();
       } else {
         setError(data.error || 'Error');
-        setLastDebug({ raw: data.raw || text.slice(0, 300), status: res.status });
       }
     } catch (err) {
       setError(err.message);
@@ -224,7 +243,74 @@ function AdminApp() {
         loadUsers();
       } else {
         setError(data.error || 'Error');
-        setLastDebug({ raw: data.raw || text.slice(0, 300), status: res.status });
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSendOpening = async () => {
+    if (!confirm('¿Enviar mails de apertura a toda la empresa? Cada persona recibirá su link personalizado.')) return;
+    setActionLoading('opening');
+    setError('');
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'admin_send_opening', adminSecret }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) {
+        alert('Mails enviados correctamente.');
+      } else {
+        setError(data.error || 'Error al enviar');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handlePdfGmail = async () => {
+    setActionLoading('pdf');
+    setError('');
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'admin_pdf_gmail', adminSecret, weekKey: activeWeekKey }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok && data.gmailUrl) {
+        window.open(data.gmailUrl, '_blank', 'noopener');
+      } else {
+        setError(data.error || 'Error al generar PDF');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSendReminder = async () => {
+    if (!confirm('¿Enviar recordatorio a las personas que no pidieron menú?')) return;
+    setActionLoading('reminder');
+    setError('');
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'admin_send_reminder', adminSecret, weekKey: activeWeekKey }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) {
+        alert('Recordatorios enviados.');
+      } else {
+        setError(data.error || 'Error al enviar');
       }
     } catch (err) {
       setError(err.message);
@@ -236,6 +322,35 @@ function AdminApp() {
   const filteredUsers = users.filter(u =>
     !search || u.nombre?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const weekForDashboard = activeWeekKey || menuWeek.weekKey;
+  const usersThisWeek = users.filter(u => (u.semana || '') === weekForDashboard);
+  const usersWhoOrdered = usersThisWeek.map(u => (u.email || '').toLowerCase()).filter(Boolean);
+  const usersWhoNotOrdered = empresaUsers.filter(e => {
+    const em = (e.email || '').toLowerCase();
+    return em && !usersWhoOrdered.includes(em);
+  });
+
+  const menuCounts = {};
+  usersThisWeek.forEach(u => {
+    ['lunes','martes','miercoles','jueves','viernes'].forEach(d => {
+      const val = u[d] || '';
+      const m = val.match(/MENU\s*(\d+)/i) || val.match(/REMOTO/i) || val.match(/SIN VIANDA/i);
+      const key = m ? (m[1] ? `MENU ${m[1]}` : (val.toUpperCase().includes('REMOTO') ? 'REMOTO' : 'SIN VIANDA')) : null;
+      if (key) {
+        menuCounts[key] = (menuCounts[key] || 0) + 1;
+      }
+    });
+  });
+  const menuChartData = Object.entries(menuCounts).map(([name, value]) => ({ name, value }));
+
+  const confirmChartData = [
+    { name: 'Confirmó', value: usersThisWeek.length, color: '#34a853' },
+    { name: 'No confirmó', value: usersWhoNotOrdered.length, color: '#ea4335' },
+  ];
+
+  const sommierCount = usersThisWeek.filter(u => (u.email || '').toLowerCase().includes('@sommiercenter')).length;
+  const btimeCount = usersThisWeek.filter(u => (u.email || '').toLowerCase().includes('@btime')).length;
 
   if (!isAuth) {
     return (
@@ -265,25 +380,59 @@ function AdminApp() {
     );
   }
 
+  const sidebarItems = [
+    { id: 'listado', label: 'Listado de pedidos', icon: Users },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  ];
+
   return (
-    <div className="min-h-screen" style={{ background: '#f5f5f5' }}>
-      <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <Shield className="w-6 h-6" style={{ color: '#1a73e8' }} />
-          <span className="font-semibold text-slate-800">Admin</span>
-          <span className="text-slate-500 text-sm">| {menuWeek.label}</span>
+    <div className="min-h-screen flex" style={{ background: '#f5f5f5' }}>
+      <aside className="w-56 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
+        <div className="p-4 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <Shield className="w-6 h-6" style={{ color: '#1a73e8' }} />
+            <span className="font-semibold text-slate-800">Admin</span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">{menuWeek.label}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-slate-600">Semana (vacío=todas):</label>
-          <input
-            type="text"
-            value={weekKeyOverride}
-            onChange={e => setWeekKeyOverride(e.target.value)}
-            placeholder={menuWeek.weekKey}
-            className="w-36 px-2 py-1 border border-slate-200 rounded text-sm"
-            title="Vacío=todas. Ej: 2026-03-09"
-          />
-          <button onClick={loadUsers} className="text-sm text-blue-600 hover:underline">Actualizar</button>
+        <nav className="flex-1 p-2">
+          {sidebarItems.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveView(id)}
+              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                activeView === id ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="p-2 border-t border-slate-100">
+          <button
+            onClick={() => { sessionStorage.removeItem('adminSecret'); setIsAuth(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
+          >
+            <LogOut className="w-4 h-4" /> Salir
+          </button>
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col min-w-0">
+        <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-slate-600">Semana:</label>
+            <input
+              type="text"
+              value={weekKeyOverride}
+              onChange={e => setWeekKeyOverride(e.target.value)}
+              placeholder={menuWeek.weekKey}
+              className="w-36 px-2 py-1 border border-slate-200 rounded text-sm"
+              title="Vacío=todas. Ej: 2026-03-09"
+            />
+            <button onClick={loadUsers} className="text-sm text-blue-600 hover:underline">Actualizar</button>
+          </div>
           <button
             onClick={async () => {
               setError('');
@@ -298,170 +447,299 @@ function AdminApp() {
                 if (data.ok) {
                   setConnectionOk(true);
                   setTimeout(() => setConnectionOk(null), 3000);
-                } else {
-                  setError(data.error || 'Error');
-                  setLastDebug({ raw: data.raw, status: res.status });
-                }
-              } catch (e) {
-                setError(e.message || 'Error');
-              }
+                } else setError(data.error || 'Error');
+              } catch (e) { setError(e.message || 'Error'); }
             }}
             className="text-sm text-slate-600 hover:underline"
           >
             Probar conexión
           </button>
-          {connectionOk && <span className="text-sm text-green-600">✓ Conexión OK</span>}
+          {connectionOk && <span className="text-sm text-green-600">✓ OK</span>}
+        </header>
+
+        {error && (
+          <div className="mx-4 mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex justify-between items-center">
+            <span>{error}</span>
+            <button onClick={() => setError('')} className="text-red-500 hover:text-red-700">×</button>
+          </div>
+        )}
+
+        <div className="flex-1 p-4 overflow-auto">
+          {activeView === 'listado' && (
+            <ListView
+              filteredUsers={filteredUsers}
+              loading={loading}
+              search={search}
+              setSearch={setSearch}
+              showAddForm={showAddForm}
+              setShowAddForm={setShowAddForm}
+              addForm={addForm}
+              setAddForm={setAddForm}
+              weeklyMenu={weeklyMenu}
+              editingUser={editingUser}
+              setEditingUser={setEditingUser}
+              handleAdd={handleAdd}
+              handleCancel={handleCancel}
+              handleUpdate={handleUpdate}
+              actionLoading={actionLoading}
+              lastDebug={lastDebug}
+            />
+          )}
+
+          {activeView === 'dashboard' && (
+            <DashboardView
+              menuChartData={menuChartData}
+              confirmChartData={confirmChartData}
+              sommierCount={sommierCount}
+              btimeCount={btimeCount}
+              usersWhoNotOrdered={usersWhoNotOrdered}
+              handleSendOpening={handleSendOpening}
+              handlePdfGmail={handlePdfGmail}
+              handleSendReminder={handleSendReminder}
+              actionLoading={actionLoading}
+            />
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setShowAddForm, addForm, setAddForm, weeklyMenu, editingUser, setEditingUser, handleAdd, handleCancel, handleUpdate, actionLoading, lastDebug }) {
+  return (
+    <div className="max-w-4xl">
+      <div className="flex flex-wrap gap-2 mb-4">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por nombre o email..."
+            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
         <button
-          onClick={() => { sessionStorage.removeItem('adminSecret'); setIsAuth(false); }}
-          className="flex items-center gap-1 text-slate-600 hover:text-slate-800 text-sm"
+          onClick={() => setShowAddForm(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white"
+          style={{ background: '#34a853' }}
         >
-          <LogOut className="w-4 h-4" /> Salir
+          <UserPlus className="w-4 h-4" /> Agregar invitado
         </button>
-      </header>
+      </div>
 
-      <main className="p-4 max-w-4xl mx-auto">
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            <div className="flex justify-between items-start gap-2">
-              <span className="flex-1">{error}</span>
-              <button onClick={() => setError('')} className="text-red-500 hover:text-red-700 shrink-0">×</button>
-            </div>
-            {lastDebug && (
-              <details className="mt-2">
-                <summary className="cursor-pointer text-xs text-red-600 hover:underline">Ver detalles técnicos</summary>
-                <pre className="mt-1 p-2 bg-red-100 rounded text-xs overflow-auto max-h-24">{JSON.stringify(lastDebug, null, 2)}</pre>
-              </details>
-            )}
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-2 mb-4">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar por nombre o email..."
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white"
-            style={{ background: '#34a853' }}
+      {showAddForm && (
+        <div className="bg-white rounded-xl shadow p-6 mb-6">
+          <h3 className="font-semibold text-slate-800 mb-4">Agregar invitado</h3>
+          <input
+            type="text"
+            value={addForm.nombre}
+            onChange={e => setAddForm(f => ({ ...f, nombre: e.target.value }))}
+            placeholder="Nombre completo"
+            className="w-full px-4 py-2 border border-slate-200 rounded-lg mb-3"
+          />
+          <select
+            value={addForm.turno}
+            onChange={e => setAddForm(f => ({ ...f, turno: e.target.value }))}
+            className="w-full px-4 py-2 border border-slate-200 rounded-lg mb-4"
           >
-            <UserPlus className="w-4 h-4" /> Agregar invitado
-          </button>
-        </div>
-
-        {showAddForm && (
-          <div className="bg-white rounded-xl shadow p-6 mb-6">
-            <h3 className="font-semibold text-slate-800 mb-4">Agregar invitado</h3>
-            <input
-              type="text"
-              value={addForm.nombre}
-              onChange={e => setAddForm(f => ({ ...f, nombre: e.target.value }))}
-              placeholder="Nombre completo"
-              className="w-full px-4 py-2 border border-slate-200 rounded-lg mb-3"
-            />
-            <select
-              value={addForm.turno}
-              onChange={e => setAddForm(f => ({ ...f, turno: e.target.value }))}
-              className="w-full px-4 py-2 border border-slate-200 rounded-lg mb-4"
-            >
-              <option value="1">Turno 1 (13:00 - 14:00)</option>
-              <option value="2">Turno 2 (14:00 - 15:00)</option>
-            </select>
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 mb-4">
-              {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].map((day, i) => (
-                <div key={i}>
-                  <label className="block text-xs text-slate-500 mb-1">{day}</label>
-                  <select
-                    value={addForm.selections[i]?.name || ''}
-                    onChange={e => {
-                      const val = e.target.value;
-                      const dayMenu = weeklyMenu[i]?.menus || [];
-                      const sel = dayMenu.find(m => m.name === val);
-                      setAddForm(f => ({
-                        ...f,
-                        selections: { ...f.selections, [i]: sel || null },
-                      }));
-                    }}
-                    className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm"
-                  >
-                    <option value="">-</option>
-                    {(weeklyMenu[i]?.menus || []).map(m => (
-                      <option key={m.id} value={m.name}>{m.name}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <button onClick={handleAdd} disabled={actionLoading === 'add'} className="px-4 py-2 rounded-lg font-medium text-white flex items-center gap-2" style={{ background: '#34a853' }}>
-                {actionLoading === 'add' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                Guardar
-              </button>
-              <button onClick={() => setShowAddForm(false)} className="px-4 py-2 border border-slate-200 rounded-lg">Cancelar</button>
-            </div>
+            <option value="1">Turno 1 (13:00 - 14:00)</option>
+            <option value="2">Turno 2 (14:00 - 15:00)</option>
+          </select>
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 mb-4">
+            {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].map((day, i) => (
+              <div key={i}>
+                <label className="block text-xs text-slate-500 mb-1">{day}</label>
+                <select
+                  value={addForm.selections[i]?.name || ''}
+                  onChange={e => {
+                    const val = e.target.value;
+                    const dayMenu = weeklyMenu[i]?.menus || [];
+                    const sel = dayMenu.find(m => m.name === val);
+                    setAddForm(f => ({ ...f, selections: { ...f.selections, [i]: sel || null } }));
+                  }}
+                  className="w-full px-2 py-1.5 border border-slate-200 rounded text-sm"
+                >
+                  <option value="">-</option>
+                  {(weeklyMenu[i]?.menus || []).map(m => (
+                    <option key={m.id} value={m.name}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
           </div>
-        )}
+          <div className="flex gap-2">
+            <button onClick={handleAdd} disabled={actionLoading === 'add'} className="px-4 py-2 rounded-lg font-medium text-white flex items-center gap-2" style={{ background: '#34a853' }}>
+              {actionLoading === 'add' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              Guardar
+            </button>
+            <button onClick={() => setShowAddForm(false)} className="px-4 py-2 border border-slate-200 rounded-lg">Cancelar</button>
+          </div>
+        </div>
+      )}
 
-        {loading ? (
-          <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>
-        ) : (
-          <div className="space-y-3">
-            {filteredUsers.map(user => (
-              <div key={user.token} className="bg-white rounded-xl shadow p-4">
-                {editingUser?.token === user.token ? (
-                  <EditForm
-                    user={user}
-                    weeklyMenu={weeklyMenu}
-                    onSave={(selections) => handleUpdate(user, selections)}
-                    onCancel={() => setEditingUser(null)}
-                    loading={actionLoading === user.token}
-                  />
-                ) : (
-                  <>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium text-slate-800">{user.nombre}</p>
-                        {user.email && <p className="text-sm text-slate-500">{user.email}</p>}
-                        <p className="text-xs text-slate-400 mt-1">Turno {user.turno}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => setEditingUser(user)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600" title="Modificar">
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleCancel(user)} disabled={actionLoading === user.token} className="p-2 rounded-lg hover:bg-red-50 text-red-600" title="Anular">
-                          {actionLoading === user.token ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                        </button>
-                      </div>
+      {loading ? (
+        <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>
+      ) : (
+        <div className="space-y-3">
+          {filteredUsers.map(user => (
+            <div key={`${user.token}-${user.semana || ''}`} className="bg-white rounded-xl shadow p-4">
+                {editingUser?.token === user.token && editingUser?.semana === user.semana ? (
+                <EditForm
+                  user={user}
+                  weeklyMenu={weeklyMenu}
+                  onSave={(selections, details) => handleUpdate(user, selections, details)}
+                  onCancel={() => setEditingUser(null)}
+                  loading={actionLoading === user.token}
+                />
+              ) : (
+                <>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium text-slate-800">{user.nombre}</p>
+                      {user.email && <p className="text-sm text-slate-500">{user.email}</p>}
+                      <p className="text-xs text-slate-400 mt-1">Turno {user.turno}</p>
                     </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => setEditingUser(user)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600" title="Modificar">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleCancel(user)} disabled={actionLoading === user.token} className="p-2 rounded-lg hover:bg-red-50 text-red-600" title="Anular">
+                        {actionLoading === user.token ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
                     <div className="mt-2 flex flex-wrap gap-2 text-sm">
                       {['lunes', 'martes', 'miercoles', 'jueves', 'viernes'].map((d, i) => (
                         <span key={d} className="px-2 py-0.5 bg-slate-100 rounded text-slate-600">
                           {d}: {extraerMenuShort(user[d])}
+                          {user.details?.[i] && <span className="text-amber-600 ml-1">({user.details[i]})</span>}
                         </span>
                       ))}
                     </div>
-                  </>
-                )}
-              </div>
-            ))}
-            {filteredUsers.length === 0 && !loading && (
-              <div className="text-center py-8">
-                <p className="text-slate-500">No hay usuarios anotados para esta semana.</p>
-                {lastDebug && (
-                  <p className="text-xs text-slate-400 mt-2">Debug: {JSON.stringify(lastDebug)}</p>
-                )}
-              </div>
-            )}
+                </>
+              )}
+            </div>
+          ))}
+          {filteredUsers.length === 0 && !loading && (
+            <div className="text-center py-8 text-slate-500">No hay usuarios anotados para esta semana.</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DashboardView({ menuChartData, confirmChartData, sommierCount, btimeCount, usersWhoNotOrdered, handleSendOpening, handlePdfGmail, handleSendReminder, actionLoading }) {
+  return (
+    <div className="max-w-5xl space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-xl shadow p-4">
+          <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+            <PieChart className="w-4 h-4" /> Menús elegidos
+          </h3>
+          {menuChartData.length > 0 ? (
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPie>
+                  <Pie data={menuChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, value }) => `${name}: ${value}`}>
+                    {menuChartData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </RechartsPie>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="text-slate-500 text-sm py-8 text-center">Sin datos aún</p>
+          )}
+        </div>
+        <div className="bg-white rounded-xl shadow p-4">
+          <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+            <PieChart className="w-4 h-4" /> Confirmó / No confirmó
+          </h3>
+          {confirmChartData.some(d => d.value > 0) ? (
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <RechartsPie>
+                  <Pie data={confirmChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, value }) => `${name}: ${value}`}>
+                    {confirmChartData.map((e, i) => (
+                      <Cell key={i} fill={e.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </RechartsPie>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="text-slate-500 text-sm py-8 text-center">Sin datos aún</p>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow p-4">
+        <h3 className="font-semibold text-slate-800 mb-3">Por dominio</h3>
+        <div className="flex gap-6">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-blue-500" />
+            <span>@sommiercenter: <strong>{sommierCount}</strong></span>
           </div>
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-amber-500" />
+            <span>@btime: <strong>{btimeCount}</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow p-4">
+        <h3 className="font-semibold text-slate-800 mb-3">Quién pidió / Quién no pidió</h3>
+        <p className="text-slate-600 text-sm mb-3">Personas que aún no enviaron su menú:</p>
+        {usersWhoNotOrdered.length > 0 ? (
+          <>
+            <ul className="list-disc list-inside text-sm text-slate-600 mb-4 max-h-40 overflow-y-auto">
+              {usersWhoNotOrdered.map((u, i) => (
+                <li key={i}>{u.nombre || u.email} {u.email && <span className="text-slate-400">({u.email})</span>}</li>
+              ))}
+            </ul>
+            <button
+              onClick={handleSendReminder}
+              disabled={actionLoading === 'reminder'}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white"
+              style={{ background: '#ea4335' }}
+            >
+              {actionLoading === 'reminder' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Enviar recordatorio
+            </button>
+          </>
+        ) : (
+          <p className="text-slate-500 text-sm">Todos ya pidieron o no hay lista de empresa cargada.</p>
         )}
-      </main>
+      </div>
+
+      <div className="bg-white rounded-xl shadow p-4">
+        <h3 className="font-semibold text-slate-800 mb-3">Acciones</h3>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={handleSendOpening}
+            disabled={actionLoading === 'opening'}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white"
+            style={{ background: '#1a73e8' }}
+          >
+            {actionLoading === 'opening' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+            Enviar mails de apertura
+          </button>
+          <button
+            onClick={handlePdfGmail}
+            disabled={actionLoading === 'pdf'}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white"
+            style={{ background: '#34a853' }}
+          >
+            {actionLoading === 'pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            PDF + Abrir Gmail
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -474,6 +752,7 @@ function extraerMenuShort(str) {
 
 function EditForm({ user, weeklyMenu, onSave, onCancel, loading }) {
   const [selections, setSelections] = useState({});
+  const [details, setDetails] = useState({});
   useEffect(() => {
     const s = {};
     ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'].forEach((d, i) => {
@@ -481,12 +760,13 @@ function EditForm({ user, weeklyMenu, onSave, onCancel, loading }) {
       if (parsed) s[i] = parsed;
     });
     setSelections(s);
+    setDetails(user.details || {});
   }, [user]);
 
   const handleSave = () => {
     const arr = [];
     for (let i = 0; i < 5; i++) arr[i] = selections[i] || null;
-    onSave(arr);
+    onSave(arr, details);
   };
 
   return (
@@ -510,6 +790,13 @@ function EditForm({ user, weeklyMenu, onSave, onCancel, loading }) {
                 <option key={m.id} value={m.name}>{m.name}</option>
               ))}
             </select>
+            <input
+              type="text"
+              placeholder="Detalle"
+              value={details[i] || ''}
+              onChange={e => setDetails(d => ({ ...d, [i]: e.target.value }))}
+              className="mt-1 w-full px-2 py-1 border border-slate-200 rounded text-xs"
+            />
           </div>
         ))}
       </div>

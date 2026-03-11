@@ -19,6 +19,7 @@ function App() {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [userTurn, setUserTurn] = useState('Turno 1 (13:00 - 14:00)');
   const [mobileDayTab, setMobileDayTab] = useState(0);
+  const [details, setDetails] = useState({});
 
   const TURNO_LABELS = { '1': 'Turno 1 (13:00 - 14:00)', '2': 'Turno 2 (14:00 - 15:00)' };
 
@@ -240,15 +241,18 @@ function App() {
   const STORAGE_KEY = `menuSelections_${weekKey}`;
 
   useEffect(() => {
-    if (Object.keys(selections).length === 0) return;
+    if (Object.keys(selections).length === 0 && Object.keys(details).length === 0) return;
     try {
       const toStore = {};
       Object.entries(selections).forEach(([dayIdx, menu]) => {
         if (menu) toStore[dayIdx] = { id: menu.id, name: menu.name, dish: menu.dish, category: menu.category };
       });
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+      if (Object.keys(details).length > 0) {
+        localStorage.setItem(STORAGE_KEY + '_details', JSON.stringify(details));
+      }
     } catch (_) {}
-  }, [selections, STORAGE_KEY]);
+  }, [selections, details, STORAGE_KEY]);
 
   useEffect(() => {
     if (!weeklyMenu?.length) return;
@@ -268,6 +272,13 @@ function App() {
       } catch (_) {
         return prev;
       }
+    });
+    setDetails(prev => {
+      try {
+        const d = localStorage.getItem(STORAGE_KEY + '_details');
+        if (!d) return prev;
+        return JSON.parse(d) || prev;
+      } catch (_) { return prev; }
     });
   }, [weeklyMenu, STORAGE_KEY]);
 
@@ -311,7 +322,10 @@ function App() {
       })
       .then(() => {
         setShowConfirmModal(false);
-        try { localStorage.removeItem(`menuSelections_${weekKey}`); } catch (_) {}
+        try {
+          localStorage.removeItem(`menuSelections_${weekKey}`);
+          localStorage.removeItem(`menuSelections_${weekKey}_details`);
+        } catch (_) {}
         setShowSuccessToast(true);
         setTimeout(() => {
           setShowSuccessToast(false);
@@ -474,9 +488,24 @@ function App() {
         </div>
         {showConfirmModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => !isSubmitting && setShowConfirmModal(false)}>
-            <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl animate-scale-in" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl animate-scale-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
               <h3 className="text-lg font-medium text-slate-800 mb-2">¿Tu elección está completa?</h3>
-              <p className="text-slate-600 text-sm mb-6">¿Deseas enviar el pedido con las opciones seleccionadas?</p>
+              <p className="text-slate-600 text-sm mb-4">¿Deseas enviar el pedido con las opciones seleccionadas?</p>
+              <div className="space-y-3 mb-4">
+                {[0,1,2,3,4].map(i => (
+                  <div key={i} className="text-sm">
+                    <span className="text-slate-500">{['Lunes','Martes','Miércoles','Jueves','Viernes'][i]}:</span>{' '}
+                    <span className="font-medium text-slate-700">{selections[i]?.name || '-'}</span>
+                    <input
+                      type="text"
+                      placeholder="Detalle (ej: no quiero papas)"
+                      value={details[i] || ''}
+                      onChange={e => setDetails(d => ({ ...d, [i]: e.target.value }))}
+                      className="mt-1 w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                ))}
+              </div>
               <div className="flex flex-col gap-2">
                 <button
                   onClick={handleFinalSubmit}
