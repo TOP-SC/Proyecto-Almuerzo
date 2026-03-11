@@ -40,7 +40,7 @@ La URL del Apps Script debe estar en dos archivos:
 En `docs/AppsScript_Completo.gs`, línea 4:
 
 ```javascript
-const APP_BASE_URL = 'https://top-proyecto-almuerzo.vercel.app';
+const APP_BASE_URL = 'https://proyecto-almuerzo.vercel.app';
 ```
 
 Verificá que sea la URL de producción de Vercel (la que se actualiza con cada push). Si tenés dominio propio, usá esa.

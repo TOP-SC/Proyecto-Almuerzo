@@ -1,87 +1,55 @@
-# Maida - Menú del Día
+# Maida – Menú Semanal
 
-Una aplicación elegante de menú del día con diseño pastel y moderna interfaz de usuario.
+Aplicación web para gestionar la elección de menús semanales de viandas. Los colaboradores reciben un link personalizado, eligen su menú por día y las respuestas se guardan en Google Sheets. Un informe se envía automáticamente a cocina cada lunes.
 
 ## Características
 
-- 🎨 **Diseño estético con colores pastel**
-- 📱 **Totalmente responsive**
-- ✨ **Animaciones suaves y transiciones**
-- 🍽️ **5 menús diferentes con descripciones**
-- ☑️ **Checkboxes personalizados**
-- 👤 **Header personalizado con nombre del usuario**
+- **Selección de menú** por día (lunes a viernes) con link personalizado
+- **Panel admin** para listar, modificar, anular y agregar invitados
+- **Informe para cocina** con formato simplificado y contador de menús
+- **Correcciones** enviadas por email cuando se modifica o anula un pedido
 
-## Tecnologías Utilizadas
+## Tecnologías
 
-- **React 18** - Framework frontend
-- **Vite** - Herramienta de build
-- **TailwindCSS** - Framework de estilos
-- **Lucide React** - Iconos modernos
+- **Frontend:** React 18, Vite, TailwindCSS, Lucide React
+- **Backend:** Google Apps Script (Sheet, Drive, MailApp)
+- **Hosting:** Vercel (SPA + función serverless)
 
 ## Instalación
 
-1. Navega a la carpeta del proyecto:
-```bash
-cd Maida
-```
-
-2. Instala las dependencias:
 ```bash
 npm install
-```
-
-## Ejecutar la Aplicación
-
-### Modo Desarrollo
-```bash
 npm run dev
 ```
-La aplicación se abrirá en `http://localhost:5173`
 
-### Modo Producción
-```bash
-npm run build
-npm run preview
-```
+La app se abre en `http://localhost:5173`
 
-## Personalización
+## URLs
 
-### Cambiar el nombre del usuario
-Edita la línea en `src/App.jsx`:
-```javascript
-const userName = "Giselle Morbello"; // Cambia aquí el nombre
-```
+| Entorno | URL |
+|---------|-----|
+| Producción | https://proyecto-almuerzo.vercel.app |
+| Admin | https://proyecto-almuerzo.vercel.app/admin |
 
-### Modificar menús
-Edita el array `menuItems` en `src/App.jsx` para agregar, eliminar o modificar los menús disponibles.
+## Documentación completa
 
-### Colores personalizados
-Los colores pastel están definidos en `tailwind.config.js` bajo la sección `colors.pastel`.
+Ver **[docs/DOCUMENTACION_COMPLETA.md](docs/DOCUMENTACION_COMPLETA.md)** para:
 
-## Estructura del Proyecto
+- Herramientas y tecnologías
+- Arquitectura del sistema
+- Paso a paso para crear la app desde cero
+- Configuración y variables
+- Flujo de datos
+- Problemas resueltos y troubleshooting
 
-```
-Maida/
-├── src/
-│   ├── App.jsx          # Componente principal
-│   ├── main.jsx         # Punto de entrada
-│   └── index.css        # Estilos globales
-├── index.html           # HTML principal
-├── package.json         # Dependencias
-├── tailwind.config.js   # Configuración de Tailwind
-├── postcss.config.js    # Configuración de PostCSS
-├── vite.config.js       # Configuración de Vite
-└── README.md           # Este archivo
-```
+## Documentación por tema
 
-## Capturas de Pantalla
-
-La aplicación presenta:
-- Header elegante con nombre de usuario
-- 5 tarjetas de menú con diseño pastel
-- Checkboxes estéticos para selección
-- Botón de envío con animaciones
-- Elementos decorativos sutiles
+| Archivo | Contenido |
+|---------|-----------|
+| [COMO_CREAR_EL_SHEET_Y_SCRIPT.md](docs/COMO_CREAR_EL_SHEET_Y_SCRIPT.md) | Crear Sheet, pegar Apps Script, desplegar |
+| [ADMIN_PANEL.md](docs/ADMIN_PANEL.md) | Uso del panel admin |
+| [FLUJO_SEMANAL.md](docs/FLUJO_SEMANAL.md) | Calendario semanal, triggers |
+| [CHECKLIST_ANTES_DE_PUSH.md](docs/CHECKLIST_ANTES_DE_PUSH.md) | Verificaciones antes de desplegar |
 
 ## Licencia
 

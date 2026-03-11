@@ -2,7 +2,7 @@
 
 ## Acceso
 
-- **URL:** `https://top-proyecto-almuerzo.vercel.app/admin`
+- **URL:** `https://proyecto-almuerzo.vercel.app/admin`
 - **Contraseña:** Configurada en Apps Script como `ADMIN_SECRET`
 
 ## Funciones

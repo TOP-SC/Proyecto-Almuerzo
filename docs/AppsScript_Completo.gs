@@ -1,7 +1,7 @@
 // CONFIGURACIÓN BÁSICA
 // IMPORTANTE: Usar la URL de PRODUCCIÓN de Vercel (la que se actualiza con cada push), no una URL de deployment/preview.
 // En Vercel: proyecto → Settings → Domains → la que sea tipo "tu-proyecto.vercel.app"
-const APP_BASE_URL = 'https://top-proyecto-almuerzo.vercel.app';
+const APP_BASE_URL = 'https://proyecto-almuerzo.vercel.app';
 const SHEET_NAME = 'Hoja 1'; // cambia si tu pestaña se llama distinto
 const CARPETA_DRIVE_COCINA_ID = '1tiH7zZ8yZHWbiDD8e64basLJPAfxrrHm'; // Carpeta donde se genera el archivo para cocina
 const HOJA_RESPUESTAS = 'Respuestas';

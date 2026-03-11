@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Menú Semanal  – Documentación del Proyecto</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #fafbfc;
+      --card: #ffffff;
+      --text: #1a1d21;
+      --text-muted: #5c6370;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --success: #059669;
+      --border: #e5e7eb;
+      --code-bg: #f3f4f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 16px;
+    }
+    .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
+    
+    /* Portada */
+    .cover {
+      min-height: 60vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 4rem 2rem;
+      background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+      color: white;
+      border-radius: 0 0 2rem 2rem;
+      margin-bottom: 3rem;
+    }
+    .cover h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+    .cover .subtitle {
+      font-size: 1.15rem;
+      opacity: 0.9;
+      font-weight: 400;
+    }
+    .cover .date { margin-top: 2rem; font-size: 0.9rem; opacity: 0.8; }
+    
+    /* Secciones */
+    section {
+      background: var(--card);
+      border-radius: 1rem;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border: 1px solid var(--border);
+    }
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--accent-light);
+    }
+    h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin: 1.5rem 0 0.75rem;
+      color: var(--text);
+    }
+    h3:first-of-type { margin-top: 0; }
+    p { margin-bottom: 1rem; color: var(--text); }
+    ul, ol { margin: 0 0 1rem 1.5rem; }
+    li { margin-bottom: 0.4rem; }
+    
+    /* Tablas */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.95rem;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    th, td { padding: 0.75rem 1rem; text-align: left; }
+    th {
+      background: var(--accent-light);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    tr:nth-child(even) { background: #f9fafb; }
+    tr:hover { background: #f3f4f6; }
+    
+    /* Código */
+    pre, code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+    }
+    pre {
+      background: var(--code-bg);
+      padding: 1rem 1.25rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      margin: 1rem 0;
+      border: 1px solid var(--border);
+      white-space: pre;
+    }
+    code { background: var(--code-bg); padding: 0.2em 0.4em; border-radius: 0.25rem; }
+    pre code { padding: 0; background: none; }
+    
+    /* Diagrama */
+    .diagram {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      overflow-x: auto;
+      margin: 1rem 0;
+    }
+    
+    /* Badges / highlights */
+    .badge {
+      display: inline-block;
+      background: var(--accent-light);
+      color: var(--accent);
+      padding: 0.25rem 0.6rem;
+      border-radius: 0.25rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+    
+    /* Print */
+    @media print {
+      body { background: white; }
+      .cover { 
+        background: #1e3a5f; 
+        -webkit-print-color-adjust: exact; 
+        print-color-adjust: exact;
+        min-height: auto;
+        padding: 3rem;
+      }
+      section { 
+        box-shadow: none; 
+        border: 1px solid #ddd;
+        break-inside: avoid;
+      }
+      .container { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="cover">
+    <h1>Menú Semanal </h1>
+    <p class="subtitle">Documentación completa del proyecto</p>
+    <p class="date">Marzo 2026</p>
+  </div>
+
+  <div class="container">
+    <section>
+      <h2>1. Resumen del proyecto</h2>
+      <p><strong>Menú Semanal </strong> es una aplicación web para gestionar la elección de menús semanales de viandas en una empresa. Los colaboradores reciben un link personalizado por email, eligen su menú para cada día de la semana (lunes a viernes) y las respuestas se guardan en un Google Sheet. Un informe se envía automáticamente a cocina cada lunes.</p>
+      <h3>Funcionalidades principales</h3>
+      <ul>
+        <li><strong>Usuarios:</strong> Link personalizado con token, nombre, email y turno</li>
+        <li><strong>Selección:</strong> Menú por día (L–V), con opciones como Menu 1, Menu 2, REMOTO, SIN VIANDA</li>
+        <li><strong>Admin:</strong> Panel para listar, modificar, anular y agregar invitados</li>
+        <li><strong>Cocina:</strong> Informe semanal con formato simplificado y contador de menús</li>
+        <li><strong>Correcciones:</strong> Emails a cocina cuando se anula, modifica o agrega un pedido</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>2. Herramientas y tecnologías</h2>
+      <h3>Frontend</h3>
+      <table>
+        <thead><tr><th>Herramienta</th><th>Versión</th><th>Uso</th></tr></thead>
+        <tbody>
+          <tr><td>React</td><td>18.2</td><td>UI y componentes</td></tr>
+          <tr><td>Vite</td><td>4.4</td><td>Build, dev server, HMR</td></tr>
+          <tr><td>TailwindCSS</td><td>3.3</td><td>Estilos, diseño responsive</td></tr>
+          <tr><td>Lucide React</td><td>0.263</td><td>Iconos</td></tr>
+          <tr><td>PostCSS</td><td>8.4</td><td>Procesamiento CSS</td></tr>
+          <tr><td>ESLint</td><td>8.45</td><td>Linting</td></tr>
+        </tbody>
+      </table>
+      <h3>Backend</h3>
+      <table>
+        <thead><tr><th>Herramienta</th><th>Uso</th></tr></thead>
+        <tbody>
+          <tr><td>Google Apps Script</td><td>Lógica de negocio, Sheet, emails, informe</td></tr>
+          <tr><td>Google Sheets</td><td>Base de datos (usuarios, respuestas)</td></tr>
+          <tr><td>Google Drive</td><td>Menú semanal (Doc exportado como txt)</td></tr>
+          <tr><td>Vercel Serverless</td><td>Proxy API (evita CORS)</td></tr>
+        </tbody>
+      </table>
+      <h3>Hosting y despliegue</h3>
+      <table>
+        <thead><tr><th>Herramienta</th><th>Uso</th></tr></thead>
+        <tbody>
+          <tr><td>Vercel</td><td>Hosting frontend + función serverless</td></tr>
+          <tr><td>GitHub</td><td>Repositorio y CI/CD con Vercel</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>3. Arquitectura</h2>
+      <div class="diagram">┌─────────────────────────────────────────────────────────────────────────┐
+│                           USUARIO / ADMIN                                │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  VERCEL (https://proyecto-almuerzo.vercel.app)                       │
+│  ├── SPA (React) → /, /admin                                            │
+│  └── API → POST /api/selection                                           │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  api/selection.js (Serverless)                                           │
+│  Reenvía body a Apps Script                                              │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  GOOGLE APPS SCRIPT (Web App)                                            │
+│  doPost → submit | admin_list | admin_cancel | admin_update | admin_add   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    ▼               ▼               ▼
+            ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+            │ Google Sheet│ │  MailApp     │ │ Google Drive │
+            │ Respuestas  │ │  (emails)    │ │ (informe)    │
+            └──────────────┘ └──────────────┘ └──────────────┘</div>
+    </section>
+
+    <section>
+      <h2>4. Estructura del proyecto</h2>
+      <pre><code>Maida/
+├── api/
+│   └── selection.js          # Función serverless (proxy a Apps Script)
+├── docs/
+│   ├── AppsScript_Completo.gs
+│   ├── DOCUMENTACION_COMPLETA.md
+│   └── ...
+├── public/
+│   ├── menu-semanal.txt
+│   └── favicon.svg
+├── src/
+│   ├── App.jsx               # App principal (selección de menú)
+│   ├── AdminApp.jsx          # Panel de administración
+│   ├── main.jsx              # Punto de entrada, ruteo / vs /admin
+│   ├── driveService.js       # Lectura del menú desde Google Drive
+│   └── menuProcessor.js      # Parser texto → JSON
+├── index.html
+├── package.json
+├── vite.config.js
+├── vercel.json
+└── tailwind.config.js</code></pre>
+    </section>
+
+    <section>
+      <h2>5. Camino para crear la app (paso a paso)</h2>
+      <h3>Fase 1: Preparación del entorno</h3>
+      <ul>
+        <li>Crear repositorio en GitHub y conectar con Vercel</li>
+        <li>Crear proyecto con Vite + React + Tailwind</li>
+      </ul>
+      <h3>Fase 2: Google Sheet y Apps Script</h3>
+      <ul>
+        <li>Crear Google Sheet con columnas email, nombre, token, turno</li>
+        <li>Extensiones → Apps Script → Pegar código de AppsScript_Completo.gs</li>
+        <li>Desplegar como Web App (Cualquier persona)</li>
+      </ul>
+      <h3>Fase 3: Frontend (React)</h3>
+      <ul>
+        <li>App principal con pantallas welcome → selection → thankyou</li>
+        <li>Servicio de menú desde Drive + menuProcessor</li>
+        <li>Ruteo /admin → AdminApp</li>
+      </ul>
+      <h3>Fase 4: API y proxy</h3>
+      <ul>
+        <li>Función serverless que reenvía a Apps Script</li>
+        <li>Proxy en Vite para desarrollo</li>
+      </ul>
+      <h3>Fase 5: Panel admin</h3>
+      <ul>
+        <li>Login, listar, modificar, anular, agregar invitados</li>
+        <li>Correcciones enviadas a cocina en cada cambio</li>
+      </ul>
+      <h3>Fase 6: Triggers</h3>
+      <ul>
+        <li>Jueves: enviarLinksMenuSemanal (emails con link)</li>
+        <li>Lunes 9:00: generarInformeSemanal (Sheet + email a cocina)</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>6. Configuración clave</h2>
+      <h3>Variables en Apps Script</h3>
+      <table>
+        <thead><tr><th>Variable</th><th>Descripción</th><th>Ejemplo</th></tr></thead>
+        <tbody>
+          <tr><td>APP_BASE_URL</td><td>URL de producción (Vercel)</td><td>https://proyecto-almuerzo.vercel.app</td></tr>
+          <tr><td>SHEET_NAME</td><td>Pestaña de usuarios</td><td>Hoja 1</td></tr>
+          <tr><td>HOJA_RESPUESTAS</td><td>Hoja de respuestas</td><td>Respuestas</td></tr>
+          <tr><td>COCINA_EMAIL</td><td>Email de cocina</td><td>juan.billiot@sommiercenter.com</td></tr>
+          <tr><td>ADMIN_SECRET</td><td>Contraseña admin</td><td>Admin.2026</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>7. Flujo de datos</h2>
+      <h3>Usuario elige menú</h3>
+      <ol>
+        <li>Usuario abre link personalizado</li>
+        <li>App carga menú desde Drive</li>
+        <li>Usuario elige menú por día (L–V)</li>
+        <li>POST a /api/selection → Apps Script guarda en Sheet</li>
+        <li>Mails al usuario y al admin</li>
+      </ol>
+      <h3>Admin modifica/anula</h3>
+      <ol>
+        <li>Admin entra a /admin con contraseña</li>
+        <li>Lista usuarios, modifica o anula</li>
+        <li>Apps Script actualiza Sheet y envía corrección a cocina</li>
+      </ol>
+      <h3>Lunes: informe a cocina</h3>
+      <ol>
+        <li>Trigger genera Sheet en Drive + email a cocina</li>
+        <li>Formato: Semana | Nombre | Turno | Lunes | ... | Contador</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>8. Problemas resueltos durante el desarrollo</h2>
+      <table>
+        <thead><tr><th>Problema</th><th>Causa</th><th>Solución</th></tr></thead>
+        <tbody>
+          <tr><td>Body vacío en Vercel</td><td>req.body no parseado</td><td>Leer body desde stream en getBody()</td></tr>
+          <tr><td>HTML en lugar de JSON</td><td>setResponseCode no existe</td><td>Quitar llamadas a setResponseCode</td></tr>
+          <tr><td>Error en setValues</td><td>getRange mal interpretado</td><td>getRange(fila, col, numFilas, numCols)</td></tr>
+          <tr><td>Fechas no coinciden</td><td>Sheet Date vs string</td><td>Función normalizarSemana()</td></tr>
+          <tr><td>Error sin mensaje</td><td>Apps Script devuelve HTML</td><td>Try-catch en doPost</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>9. Comandos útiles</h2>
+      <pre><code>npm run dev      # Desarrollo local (http://localhost:5173)
+npm run build    # Build para producción
+npm run preview  # Vista previa del build
+npm run lint     # Linter</code></pre>
+    </section>
+
+    <div class="footer">
+      <p>Documentación generada para el proyecto Menú Semanal  – Marzo 2026</p>
+      <p style="margin-top: 0.5rem; font-size: 0.85rem;">Para exportar a PDF: Archivo → Imprimir → Guardar como PDF</p>
+    </div>
+  </div>
+</body>
+</html>

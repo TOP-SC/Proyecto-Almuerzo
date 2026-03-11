@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Automatización de Carga de Menú</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(160deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      color: #1e293b;
+    }
+    .slide {
+      width: 100%;
+      max-width: 1200px;
+      aspect-ratio: 16/9;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      padding: 2rem 2.5rem 1.25rem;
+      border-bottom: 3px solid #0ea5e9;
+      background: linear-gradient(to bottom, #f8fafc, #fff);
+    }
+    .title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+    }
+    .grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 0;
+    }
+    .card {
+      padding: 1.75rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      border-right: 1px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
+      transition: background 0.2s;
+    }
+    .card:nth-child(2) { border-right: none; }
+    .card:nth-child(4) { border-right: none; }
+    .card:nth-child(3), .card:nth-child(4) { border-bottom: none; }
+    .card:hover { background: #f8fafc; }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .card:nth-child(1) .icon { background: #fef2f2; color: #dc2626; }
+    .card:nth-child(2) .icon { background: #ecfdf5; color: #059669; }
+    .card:nth-child(3) .icon { background: #eff6ff; color: #2563eb; }
+    .card:nth-child(4) .icon { background: #f5f3ff; color: #7c3aed; }
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .card-content {
+      font-size: 0.9rem;
+      line-height: 1.55;
+      color: #475569;
+    }
+    .card-content ul {
+      list-style: none;
+      margin: 0;
+    }
+    .card-content li {
+      padding-left: 1.25rem;
+      position: relative;
+      margin-bottom: 0.4rem;
+    }
+    .card-content li::before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: #0ea5e9;
+      font-weight: 700;
+    }
+    .tools {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.25rem;
+    }
+    .tool-badge {
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    @media print {
+      body { background: white; padding: 0; }
+      .slide { box-shadow: none; border: 1px solid #e2e8f0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="slide">
+    <div class="header">
+      <h1 class="title">Automatización de Carga de Menú</h1>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="card-header">
+          <div class="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <span class="card-title">Problema</span>
+        </div>
+        <div class="card-content">
+          La carga del menú realizada por terceros genera riesgo de errores operativos, inconsistencias en la información y dependencia de intervención manual.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <span class="card-title">Qué Soluciona</span>
+        </div>
+        <div class="card-content">
+          <ul>
+            <li>Reduce errores humanos en la carga de datos</li>
+            <li>Optimiza horas de trabajo mediante automatización</li>
+            <li>Mejora la experiencia del usuario</li>
+            <li>Permite trazabilidad y control del servicio del proveedor</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/></svg>
+          </div>
+          <span class="card-title">Herramientas Utilizadas</span>
+        </div>
+        <div class="card-content">
+          <div class="tools">
+            <span class="tool-badge">Cursor</span>
+            <span class="tool-badge">Google Apps Script</span>
+            <span class="tool-badge">Google Sheets</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <span class="card-title">Presentación de la Aplicación</span>
+        </div>
+        <div class="card-content">
+          Demostración de la app desarrollada para gestionar y automatizar la carga del menú, asegurando consistencia, control y eficiencia operativa.
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
