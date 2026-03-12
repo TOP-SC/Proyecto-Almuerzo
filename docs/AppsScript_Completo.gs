@@ -5,6 +5,7 @@ const APP_BASE_URL = 'https://proyecto-almuerzo.vercel.app';
 const SHEET_NAME = 'Hoja 1'; // cambia si tu pestaña se llama distinto
 const CARPETA_DRIVE_COCINA_ID = '1tiH7zZ8yZHWbiDD8e64basLJPAfxrrHm'; // Carpeta donde se genera el archivo para cocina
 const HOJA_RESPUESTAS = 'Respuestas';
+const HOJA_CONFIG = 'Config';
 const COCINA_EMAIL = 'juan.billiot@sommiercenter.com'; // Email de la gente de viandas/cocina (confirmar)
 const ADMIN_SECRET = 'Admin.2026'; // Contraseña admin
 
@@ -49,26 +50,25 @@ function generarTokensSiFaltan() {
   }
 }
 
-// Crea el HTML del mail para usuarios (diseño estético + botón)
+// Mail compacto (sin scroll en móvil)
 function crearHtmlMailUsuario(nombre, url) {
-  return '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;font-family:\'Segoe UI\',Tahoma,Geneva,Verdana,sans-serif;background-color:#f5f5f5;">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:24px 0;">' +
-    '<tr><td align="center">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">' +
-    '<tr><td style="background:linear-gradient(135deg,#1a73e8 0%,#0d47a1 100%);padding:28px 32px;text-align:center;">' +
-    '<h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:600;">Menú Semanal</h1>' +
-    '<p style="margin:8px 0 0;color:rgba(255,255,255,0.9);font-size:14px;">Elegí tu menú para la semana</p>' +
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;font-family:\'Segoe UI\',Tahoma,sans-serif;background:#f5f5f5;">' +
+    '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:12px 0;"><tr><td align="center">' +
+    '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:360px;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">' +
+    '<tr><td style="background:linear-gradient(135deg,#1a73e8,#0d47a1);padding:16px 20px;text-align:center;">' +
+    '<h1 style="margin:0;color:#fff;font-size:18px;font-weight:600;">Menú Semanal</h1>' +
+    '<p style="margin:4px 0 0;color:rgba(255,255,255,0.9);font-size:12px;">Elegí tu menú</p>' +
     '</td></tr>' +
-    '<tr><td style="padding:32px;">' +
-    '<p style="margin:0 0 16px;color:#333;font-size:16px;line-height:1.5;">Buen día <strong>' + nombre + '</strong>,</p>' +
-    '<p style="margin:0 0 24px;color:#555;font-size:15px;line-height:1.6;">Ya está disponible el menú semanal para que elijas tus opciones. Hacé clic en el botón para ingresar y seleccionar tu menú.</p>' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:8px 0 24px;">' +
-    '<a href="' + url + '" style="display:inline-block;padding:14px 32px;background:#1a73e8;color:#ffffff !important;text-decoration:none;font-size:16px;font-weight:600;border-radius:8px;box-shadow:0 2px 4px rgba(26,115,232,0.3);">Elegir mi menú</a>' +
-    '</td></tr></table>' +
-    '<p style="margin:0;color:#777;font-size:13px;line-height:1.5;">Recordá que podés modificar tu elección hasta la fecha/hora límite establecida.</p>' +
+    '<tr><td style="padding:16px 20px;">' +
+    '<p style="margin:0 0 12px;color:#333;font-size:14px;">Hola <strong>' + nombre + '</strong>,</p>' +
+    '<p style="margin:0 0 14px;color:#555;font-size:13px;line-height:1.4;">Ya está disponible el menú. Hacé clic para elegir:</p>' +
+    '<p style="margin:0 0 10px;text-align:center;">' +
+    '<a href="' + url + '" style="display:inline-block;padding:10px 24px;background:#1a73e8;color:#fff!important;text-decoration:none;font-size:14px;font-weight:600;border-radius:6px;">Elegir mi menú</a>' +
+    '</p>' +
+    '<p style="margin:0;color:#777;font-size:11px;">Podés modificar hasta el cierre.</p>' +
     '</td></tr>' +
-    '<tr><td style="padding:20px 32px;background:#f8f9fa;border-top:1px solid #eee;">' +
-    '<p style="margin:0;color:#888;font-size:12px;">Saludos,<br>RRHH / Organización de Almuerzos</p>' +
+    '<tr><td style="padding:10px 20px;background:#f8f9fa;border-top:1px solid #eee;">' +
+    '<p style="margin:0;color:#888;font-size:11px;">RRHH / Almuerzos</p>' +
     '</td></tr></table></td></tr></table></body></html>';
 }
 
@@ -123,6 +123,49 @@ function doGet(e) {
   return ContentService
     .createTextOutput(JSON.stringify({ status: 'ok', message: 'Backend menú semanal activo' }))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// === CICLO APERTURA/CIERRE ===
+function obtenerHojaConfig() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(HOJA_CONFIG);
+  if (!sheet) {
+    sheet = ss.insertSheet(HOJA_CONFIG);
+    sheet.getRange(1, 1, 1, 2).setValues([['Semana', 'Estado']]);
+    sheet.getRange(1, 1, 1, 2).setFontWeight('bold');
+  }
+  return sheet;
+}
+
+function getCycleStatus(weekKey) {
+  var wk = normalizarSemana(weekKey || '');
+  var sheet = obtenerHojaConfig();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return true; // Por defecto abierto si no hay config
+  var data = sheet.getRange(2, 1, lastRow, 2).getValues();
+  for (var i = 0; i < data.length; i++) {
+    if (normalizarSemana(data[i][0]) === wk) {
+      return (data[i][1] || '').toString().toLowerCase() === 'abierto';
+    }
+  }
+  return true; // Si no hay fila para esta semana, abierto por defecto
+}
+
+function setCycleState(weekKey, abierto) {
+  var wk = normalizarSemana(weekKey || '');
+  var sheet = obtenerHojaConfig();
+  var lastRow = sheet.getLastRow();
+  var estado = abierto ? 'abierto' : 'cerrado';
+  if (lastRow >= 2) {
+    var data = sheet.getRange(2, 1, lastRow, 2).getValues();
+    for (var i = 0; i < data.length; i++) {
+      if (normalizarSemana(data[i][0]) === wk) {
+        sheet.getRange(2 + i, 2).setValue(estado);
+        return;
+      }
+    }
+  }
+  sheet.appendRow([wk, estado]);
 }
 
 // Normaliza semana para comparación (Date o string -> YYYY-MM-DD)
@@ -201,8 +244,19 @@ function doPostImpl(e) {
     var data = JSON.parse(e.postData.contents);
     var action = (data && data.action) ? data.action : 'submit';
 
+    if (action === 'get_cycle_status') {
+      var wk = normalizarSemana(data.weekKey || '');
+      var abierto = getCycleStatus(wk);
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, abierto: abierto })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (action !== 'submit') {
       return handleAdminAction(data);
+    }
+
+    var weekKey = data.weekKey || data.weekNumber || '';
+    if (!getCycleStatus(weekKey)) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'El período de elección está cerrado.' })).setMimeType(ContentService.MimeType.JSON);
     }
 
     var userName   = data.userName   || 'Colaborador';
@@ -325,6 +379,18 @@ function handleAdminAction(data) {
     }
     if (action === 'admin_send_reminder') {
       return adminSendReminder(data.weekKey);
+    }
+    if (action === 'admin_cycle_open') {
+      setCycleState(data.weekKey, true);
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, abierto: true })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (action === 'admin_cycle_close') {
+      setCycleState(data.weekKey, false);
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, abierto: false })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (action === 'admin_cycle_status') {
+      var abierto = getCycleStatus(data.weekKey);
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, abierto: abierto })).setMimeType(ContentService.MimeType.JSON);
     }
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Acción desconocida' }))
       .setMimeType(ContentService.MimeType.JSON);

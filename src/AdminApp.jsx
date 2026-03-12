@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, LogOut, Search, XCircle, Edit2, UserPlus, Check, Loader2, LayoutDashboard, Users, Mail, FileText, PieChart, Send, Building2 } from 'lucide-react';
+import { Shield, LogOut, Search, XCircle, Edit2, UserPlus, Check, Loader2, LayoutDashboard, Users, Mail, FileText, PieChart, Send, Building2, Lock, Unlock } from 'lucide-react';
 import { DriveService } from './driveService.js';
 import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
@@ -89,7 +89,18 @@ function AdminApp() {
     if (isAuth && (activeView === 'dashboard' || activeView === 'empresa' || activeView === 'pendientes')) {
       loadEmpresaUsers();
     }
+    if (isAuth && activeView === 'listado') {
+      loadUsers();
+      const iv = setInterval(loadUsers, 30000);
+      return () => clearInterval(iv);
+    }
   }, [isAuth, activeView]);
+
+  useEffect(() => {
+    if (isAuth && adminSecret && activeView === 'dashboard') {
+      loadCycleStatus();
+    }
+  }, [isAuth, adminSecret, activeView, activeWeekKey]);
 
   const loadEmpresaUsers = async () => {
     try {
@@ -296,6 +307,51 @@ function AdminApp() {
     }
   };
 
+  const [cycleOpen, setCycleOpen] = useState(null);
+
+  const loadCycleStatus = async () => {
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'admin_cycle_status', adminSecret, weekKey: activeWeekKey }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) setCycleOpen(data.abierto);
+    } catch (_) { setCycleOpen(true); }
+  };
+
+  const handleCycleOpen = async () => {
+    setActionLoading('cycle');
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'admin_cycle_open', adminSecret, weekKey: activeWeekKey }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) { setCycleOpen(true); }
+      else setError(data.error || 'Error');
+    } catch (e) { setError(e.message); }
+    finally { setActionLoading(null); }
+  };
+
+  const handleCycleClose = async () => {
+    if (!confirm('¿Cerrar el ciclo? Los usuarios no podrán modificar sus menús.')) return;
+    setActionLoading('cycle');
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'admin_cycle_close', adminSecret, weekKey: activeWeekKey }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) { setCycleOpen(false); }
+      else setError(data.error || 'Error');
+    } catch (e) { setError(e.message); }
+    finally { setActionLoading(null); }
+  };
+
   const handleSendReminder = async () => {
     if (!confirm('¿Enviar recordatorio a las personas que no pidieron menú?')) return;
     setActionLoading('reminder');
@@ -481,6 +537,10 @@ function AdminApp() {
               handleSendOpening={handleSendOpening}
               handlePdfGmail={handlePdfGmail}
               actionLoading={actionLoading}
+              cycleOpen={cycleOpen}
+              handleCycleOpen={handleCycleOpen}
+              handleCycleClose={handleCycleClose}
+              weekLabel={menuWeek.label}
             />
           )}
           {activeView === 'menus' && (
@@ -659,49 +719,85 @@ const MENU_CARD_COLORS = {
   'SIN VIANDA': { bg: 'from-slate-400 to-slate-500', shadow: 'shadow-slate-400/30', text: 'text-white' },
 };
 
-function DashboardView({ menuChartData, confirmChartData, handleSendOpening, handlePdfGmail, actionLoading }) {
+function DashboardView({ menuChartData, confirmChartData, handleSendOpening, handlePdfGmail, actionLoading, cycleOpen, handleCycleOpen, handleCycleClose, weekLabel }) {
   return (
     <div className="max-w-4xl h-full flex flex-col gap-4">
+      {/* Ciclo apertura/cierre */}
+      <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-4">
+        <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+          <Lock className="w-4 h-4" />
+          Ciclo de elección
+        </h3>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${cycleOpen ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'}`}>
+            <span className={`w-2 h-2 rounded-full ${cycleOpen ? 'bg-green-500' : 'bg-slate-400'}`} />
+            <span className="font-medium">{cycleOpen === null ? '...' : cycleOpen ? 'Abierto' : 'Cerrado'}</span>
+          </div>
+          <button
+            onClick={handleCycleOpen}
+            disabled={actionLoading === 'cycle' || cycleOpen}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {actionLoading === 'cycle' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Unlock className="w-3 h-3" />}
+            Abrir
+          </button>
+          <button
+            onClick={handleCycleClose}
+            disabled={actionLoading === 'cycle' || !cycleOpen}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-600 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Lock className="w-3 h-3" />
+            Cerrar
+          </button>
+        </div>
+      </div>
+
+      {/* Gráficos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
-        <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 p-4">
-          <h3 className="font-semibold text-slate-700 mb-3 text-sm uppercase tracking-wide">Menús elegidos</h3>
+        <div className="bg-white/95 backdrop-blur rounded-2xl shadow-xl border border-slate-100/80 p-5 overflow-hidden" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+          <h3 className="font-semibold text-slate-700 mb-3 text-xs uppercase tracking-wider text-slate-500">Menús elegidos</h3>
           {menuChartData.length > 0 ? (
-            <div className="h-40">
+            <div className="h-44">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPie>
-                  <Pie data={menuChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label={({ name, value }) => `${name}: ${value}`}>
+                  <Pie data={menuChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={72} innerRadius={24} paddingAngle={2} label={({ name, value }) => `${name}: ${value}`}>
                     {menuChartData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="white" strokeWidth={2} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(v) => [v, '']} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.1)' }} />
                 </RechartsPie>
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-slate-400 text-sm py-6 text-center">Sin datos aún</p>
+            <div className="h-44 flex items-center justify-center">
+              <p className="text-slate-400 text-sm">Sin datos aún</p>
+            </div>
           )}
         </div>
-        <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 p-4">
-          <h3 className="font-semibold text-slate-700 mb-3 text-sm uppercase tracking-wide">Confirmó / No confirmó</h3>
+        <div className="bg-white/95 backdrop-blur rounded-2xl shadow-xl border border-slate-100/80 p-5 overflow-hidden" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+          <h3 className="font-semibold text-slate-700 mb-3 text-xs uppercase tracking-wider text-slate-500">Confirmó / No confirmó</h3>
           {confirmChartData.some(d => d.value > 0) ? (
-            <div className="h-40">
+            <div className="h-44">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPie>
-                  <Pie data={confirmChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label={({ name, value }) => `${name}: ${value}`}>
+                  <Pie data={confirmChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={72} innerRadius={24} paddingAngle={2} label={({ name, value }) => `${name}: ${value}`}>
                     {confirmChartData.map((e, i) => (
-                      <Cell key={i} fill={e.color} />
+                      <Cell key={i} fill={e.color} stroke="white" strokeWidth={2} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(v) => [v, '']} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.1)' }} />
                 </RechartsPie>
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-slate-400 text-sm py-6 text-center">Sin datos aún</p>
+            <div className="h-44 flex items-center justify-center">
+              <p className="text-slate-400 text-sm">Sin datos aún</p>
+            </div>
           )}
         </div>
       </div>
+
       <div className="flex flex-wrap gap-3 flex-shrink-0">
         <button
           onClick={handleSendOpening}

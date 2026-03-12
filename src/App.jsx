@@ -20,8 +20,10 @@ function App() {
   const [userTurn, setUserTurn] = useState('Turno 1 (13:00 - 14:00)');
   const [mobileDayTab, setMobileDayTab] = useState(0);
   const [details, setDetails] = useState({});
+  const [cycleOpen, setCycleOpen] = useState(null);
 
   const TURNO_LABELS = { '1': 'Turno 1 (13:00 - 14:00)', '2': 'Turno 2 (14:00 - 15:00)' };
+  const API_URL = import.meta.env.VITE_API_URL || '/api/selection';
 
   // Semana del menú: lunes a viernes (hora Argentina; mostramos "del lunes X al viernes Y")
   const getMenuWeek = () => {
@@ -179,6 +181,21 @@ function App() {
       }
     ]);
   };
+
+  useEffect(() => {
+    if (userToken && weekKey) {
+      fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_cycle_status', weekKey }),
+      })
+        .then(r => r.json())
+        .then(d => { if (d && d.ok !== undefined) setCycleOpen(d.abierto); })
+        .catch(() => setCycleOpen(true));
+    } else {
+      setCycleOpen(true);
+    }
+  }, [userToken, weekKey]);
 
   useEffect(() => {
     // Leer token, nombre y email de usuario desde la URL (?u=...&name=...&email=...)
@@ -340,6 +357,20 @@ function App() {
         setIsSubmitting(false);
       });
   };
+
+  const renderCerradoScreen = () => (
+    <div className="min-h-screen app-bg flex items-center justify-center p-6">
+      <div className="text-center max-w-md">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-200 flex items-center justify-center">
+          <span className="text-2xl">🔒</span>
+        </div>
+        <h1 className="text-2xl font-medium text-slate-800 mb-2">Período cerrado</h1>
+        <p className="text-slate-600 mb-4">El período para elegir el menú de esta semana ya finalizó.</p>
+        <p className="text-slate-500 text-sm">{weekNumber}</p>
+        <p className="text-slate-400 text-sm mt-4">Si tenés dudas, contactá a RRHH.</p>
+      </div>
+    </div>
+  );
 
   const renderWelcomeScreen = () => (
     <div className="min-h-screen app-bg flex items-center justify-center p-6">
@@ -555,8 +586,14 @@ function App() {
         Create By TOP
       </div>
       
-      {currentScreen === 'welcome' && renderWelcomeScreen()}
-      {currentScreen === 'selection' && renderSelectionScreen()}
+      {userToken && cycleOpen === null && (
+        <div className="min-h-screen app-bg flex items-center justify-center">
+          <div className="spinner-material" aria-label="Cargando" />
+        </div>
+      )}
+      {userToken && cycleOpen === false && renderCerradoScreen()}
+      {!(userToken && cycleOpen === null) && !(userToken && cycleOpen === false) && currentScreen === 'welcome' && renderWelcomeScreen()}
+      {!(userToken && cycleOpen === null) && !(userToken && cycleOpen === false) && currentScreen === 'selection' && renderSelectionScreen()}
       {currentScreen === 'thankyou' && renderThankYouScreen()}
 
       {showSuccessToast && (
