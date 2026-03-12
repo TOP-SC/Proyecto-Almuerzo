@@ -86,7 +86,7 @@ function AdminApp() {
   }, [isAuth, adminSecret]);
 
   useEffect(() => {
-    if (isAuth && (activeView === 'dashboard' || activeView === 'empresa' || activeView === 'pendientes')) {
+    if (isAuth && (activeView === 'dashboard' || activeView === 'empresa' || activeView === 'pendientes' || activeView === 'listado')) {
       loadEmpresaUsers();
     }
     if (isAuth && activeView === 'listado') {
@@ -570,6 +570,8 @@ function AdminApp() {
               handleUpdate={handleUpdate}
               actionLoading={actionLoading}
               lastDebug={lastDebug}
+              empresaUsers={empresaUsers}
+              usersThisWeek={usersThisWeek}
             />
           )}
           {activeView === 'pendientes' && (
@@ -577,6 +579,7 @@ function AdminApp() {
               usersWhoNotOrdered={usersWhoNotOrdered}
               handleSendReminder={handleSendReminder}
               actionLoading={actionLoading}
+              empresaUsers={empresaUsers}
             />
           )}
         </div>
@@ -585,7 +588,24 @@ function AdminApp() {
   );
 }
 
-function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setShowAddForm, addForm, setAddForm, weeklyMenu, editingUser, setEditingUser, handleAdd, handleCancel, handleUpdate, actionLoading, lastDebug }) {
+function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setShowAddForm, addForm, setAddForm, weeklyMenu, editingUser, setEditingUser, handleAdd, handleCancel, handleUpdate, actionLoading, lastDebug, empresaUsers, usersThisWeek }) {
+  const [selectedUserLookup, setSelectedUserLookup] = useState('');
+  const allUsersForDropdown = empresaUsers && empresaUsers.length > 0 ? empresaUsers : usersThisWeek.map(u => ({ email: u.email, nombre: u.nombre }));
+  const getSelectedFromDropdown = () => {
+    if (!selectedUserLookup) return null;
+    if (selectedUserLookup.startsWith('idx-')) {
+      const i = parseInt(selectedUserLookup.replace('idx-', ''), 10);
+      return allUsersForDropdown[i] || null;
+    }
+    return (empresaUsers || []).find(u => (u.email || '').toLowerCase() === selectedUserLookup) || allUsersForDropdown.find(u => (u.email || '').toLowerCase() === selectedUserLookup);
+  };
+  const selectedFromDropdown = getSelectedFromDropdown();
+  const lookupUser = selectedFromDropdown ? usersThisWeek.find(u =>
+    ((selectedFromDropdown.email && (u.email || '').toLowerCase() === (selectedFromDropdown.email || '').toLowerCase()) ||
+     ((selectedFromDropdown.nombre || '').toLowerCase() && (u.nombre || '').toLowerCase() === (selectedFromDropdown.nombre || '').toLowerCase()))
+  ) : null;
+  const selectedEmpresaUser = selectedFromDropdown;
+
   return (
     <div className="max-w-4xl">
       <div className="flex flex-wrap gap-2 mb-4">
@@ -599,6 +619,19 @@ function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setS
             className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
+        <select
+          value={selectedUserLookup}
+          onChange={e => setSelectedUserLookup(e.target.value)}
+          className="px-4 py-2 border border-slate-200 rounded-xl text-sm min-w-[200px]"
+          title="Ver elección de un usuario"
+        >
+          <option value="">Ver usuario...</option>
+          {allUsersForDropdown.map((u, i) => (
+            <option key={i} value={(u.email || '').toLowerCase() || `idx-${i}`}>
+              {u.nombre || u.email || 'Sin nombre'}
+            </option>
+          ))}
+        </select>
         <button
           onClick={() => setShowAddForm(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-white shadow-md shadow-green-500/20 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 transition-all"
@@ -606,6 +639,22 @@ function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setS
           <UserPlus className="w-4 h-4" /> Agregar invitado
         </button>
       </div>
+
+      {lookupUser && (
+        <div className="mb-4 p-4 bg-white/95 rounded-xl shadow border border-slate-100">
+          <h4 className="font-medium text-slate-800 mb-2">{lookupUser.nombre} {lookupUser.email && <span className="text-slate-500 text-sm">({lookupUser.email})</span>}</h4>
+          <div className="flex flex-wrap gap-2 text-sm">
+            {['lunes','martes','miercoles','jueves','viernes'].map((d, i) => (
+              <span key={d} className="px-2 py-1 bg-slate-100 rounded">{d}: {extraerMenuShort(lookupUser[d])}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      {selectedUserLookup && !lookupUser && (
+        <div className="mb-4 p-4 bg-amber-50 rounded-xl border border-amber-200 text-amber-800">
+          <strong>{selectedEmpresaUser?.nombre || selectedEmpresaUser?.email || 'Usuario'}:</strong> No eligió menú para esta semana.
+        </div>
+      )}
 
       {showAddForm && (
         <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-6 mb-6">
@@ -677,7 +726,7 @@ function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setS
                     <div>
                       <p className="font-medium text-slate-800">{user.nombre}</p>
                       {user.email && <p className="text-sm text-slate-500">{user.email}</p>}
-                      <p className="text-xs text-slate-400 mt-1">Turno {user.turno}</p>
+                      <p className="text-xs text-slate-400 mt-1">{user.turno === '1' || user.turno === '2' ? `Turno ${user.turno}` : (user.turno || '')}</p>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => setEditingUser(user)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600" title="Modificar">
@@ -753,46 +802,46 @@ function DashboardView({ menuChartData, confirmChartData, handleSendOpening, han
       </div>
 
       {/* Gráficos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
-        <div className="bg-white/95 backdrop-blur rounded-2xl shadow-xl border border-slate-100/80 p-5 overflow-hidden" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
-          <h3 className="font-semibold text-slate-700 mb-3 text-xs uppercase tracking-wider text-slate-500">Menús elegidos</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-shrink-0">
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6" style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
+          <h3 className="font-semibold text-slate-700 mb-4 text-sm">Menús elegidos</h3>
           {menuChartData.length > 0 ? (
-            <div className="h-44">
+            <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPie>
-                  <Pie data={menuChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={72} innerRadius={24} paddingAngle={2} label={({ name, value }) => `${name}: ${value}`}>
+                  <Pie data={menuChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} innerRadius={50} paddingAngle={3} label={({ name, value }) => `${name}: ${value}`}>
                     {menuChartData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="white" strokeWidth={2} />
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="white" strokeWidth={3} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v) => [v, '']} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.1)' }} />
+                  <Tooltip formatter={(v) => [v, '']} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', padding: '12px 16px', fontSize: 14 }} />
                 </RechartsPie>
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-44 flex items-center justify-center">
-              <p className="text-slate-400 text-sm">Sin datos aún</p>
+            <div className="h-64 flex items-center justify-center">
+              <p className="text-slate-400">Sin datos aún</p>
             </div>
           )}
         </div>
-        <div className="bg-white/95 backdrop-blur rounded-2xl shadow-xl border border-slate-100/80 p-5 overflow-hidden" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
-          <h3 className="font-semibold text-slate-700 mb-3 text-xs uppercase tracking-wider text-slate-500">Confirmó / No confirmó</h3>
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6" style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
+          <h3 className="font-semibold text-slate-700 mb-4 text-sm">Confirmó / No confirmó</h3>
           {confirmChartData.some(d => d.value > 0) ? (
-            <div className="h-44">
+            <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPie>
-                  <Pie data={confirmChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={72} innerRadius={24} paddingAngle={2} label={({ name, value }) => `${name}: ${value}`}>
+                  <Pie data={confirmChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} innerRadius={50} paddingAngle={3} label={({ name, value }) => `${name}: ${value}`}>
                     {confirmChartData.map((e, i) => (
-                      <Cell key={i} fill={e.color} stroke="white" strokeWidth={2} />
+                      <Cell key={i} fill={e.color} stroke="white" strokeWidth={3} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v) => [v, '']} contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 2px 12px rgba(0,0,0,0.1)' }} />
+                  <Tooltip formatter={(v) => [v, '']} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', padding: '12px 16px', fontSize: 14 }} />
                 </RechartsPie>
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-44 flex items-center justify-center">
-              <p className="text-slate-400 text-sm">Sin datos aún</p>
+            <div className="h-64 flex items-center justify-center">
+              <p className="text-slate-400">Sin datos aún</p>
             </div>
           )}
         </div>
@@ -889,7 +938,7 @@ function EmpresaView({ sommierUsers, btimeUsers }) {
   );
 }
 
-function PendientesView({ usersWhoNotOrdered, handleSendReminder, actionLoading }) {
+function PendientesView({ usersWhoNotOrdered, handleSendReminder, actionLoading, empresaUsers }) {
   return (
     <div className="max-w-4xl">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
@@ -913,8 +962,10 @@ function PendientesView({ usersWhoNotOrdered, handleSendReminder, actionLoading 
               </li>
             ))}
           </ul>
+        ) : empresaUsers && empresaUsers.length === 0 ? (
+          <p className="text-slate-500 py-8 text-center">Cargá la lista de empleados en la hoja <strong>usuarios_completos</strong> (A=email, B=nombre, C=token, D=turno) del Sheet.</p>
         ) : (
-          <p className="text-slate-500 py-8 text-center">Todos ya pidieron o no hay lista de empresa cargada.</p>
+          <p className="text-slate-500 py-8 text-center">Todos ya pidieron.</p>
         )}
       </div>
     </div>
@@ -924,7 +975,10 @@ function PendientesView({ usersWhoNotOrdered, handleSendReminder, actionLoading 
 function extraerMenuShort(str) {
   if (!str) return '-';
   const m = str.match(/MENU\s*(\d+)/i);
-  return m ? `Menu ${m[1]}` : str.slice(0, 15);
+  if (m) return `Menu ${m[1]}`;
+  if (/REMOTO/i.test(str)) return 'REMOTO';
+  if (/SIN VIANDA/i.test(str)) return 'SIN VIANDA';
+  return str.slice(0, 20);
 }
 
 function EditForm({ user, weeklyMenu, onSave, onCancel, loading }) {

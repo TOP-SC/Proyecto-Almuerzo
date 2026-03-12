@@ -582,8 +582,8 @@ function App() {
   return (
     <>
       {/* Firma visible de la app */}
-      <div className="fixed bottom-4 right-4 text-slate-400 text-xs pointer-events-none select-none z-50">
-        Create By TOP
+      <div className="fixed bottom-4 right-4 text-slate-500 text-sm font-medium pointer-events-none select-none z-50">
+        Create by Proyectos y Transformación Operativa
       </div>
       
       {userToken && cycleOpen === null && (

@@ -2,7 +2,7 @@
 // IMPORTANTE: Usar la URL de PRODUCCIÓN de Vercel (la que se actualiza con cada push), no una URL de deployment/preview.
 // En Vercel: proyecto → Settings → Domains → la que sea tipo "tu-proyecto.vercel.app"
 const APP_BASE_URL = 'https://proyecto-almuerzo.vercel.app';
-const SHEET_NAME = 'Hoja 1'; // cambia si tu pestaña se llama distinto
+const SHEET_NAME = 'usuarios_completos'; // Hoja con A=email, B=nombre, C=token, D=turno
 const CARPETA_DRIVE_COCINA_ID = '1tiH7zZ8yZHWbiDD8e64basLJPAfxrrHm'; // Carpeta donde se genera el archivo para cocina
 const HOJA_RESPUESTAS = 'Respuestas';
 const HOJA_CONFIG = 'Config';
@@ -50,25 +50,25 @@ function generarTokensSiFaltan() {
   }
 }
 
-// Mail compacto (sin scroll en móvil)
+// Mail de apertura - diseño cuidado
 function crearHtmlMailUsuario(nombre, url) {
-  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;font-family:\'Segoe UI\',Tahoma,sans-serif;background:#f5f5f5;">' +
-    '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:12px 0;"><tr><td align="center">' +
-    '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:360px;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">' +
-    '<tr><td style="background:linear-gradient(135deg,#1a73e8,#0d47a1);padding:16px 20px;text-align:center;">' +
-    '<h1 style="margin:0;color:#fff;font-size:18px;font-weight:600;">Menú Semanal</h1>' +
-    '<p style="margin:4px 0 0;color:rgba(255,255,255,0.9);font-size:12px;">Elegí tu menú</p>' +
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;font-family:\'Segoe UI\',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#e8f0fe 0%,#f1f5f9 100%);">' +
+    '<table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 16px;"><tr><td align="center">' +
+    '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:420px;background:#ffffff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.08);overflow:hidden;border:1px solid rgba(0,0,0,0.04);">' +
+    '<tr><td style="background:linear-gradient(135deg,#1a73e8 0%,#0d47a1 100%);padding:28px 24px;text-align:center;">' +
+    '<h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:600;letter-spacing:-0.5px;">Menú Semanal</h1>' +
+    '<p style="margin:8px 0 0;color:rgba(255,255,255,0.95);font-size:15px;">Elegí tu menú para la semana</p>' +
     '</td></tr>' +
-    '<tr><td style="padding:16px 20px;">' +
-    '<p style="margin:0 0 12px;color:#333;font-size:14px;">Hola <strong>' + nombre + '</strong>,</p>' +
-    '<p style="margin:0 0 14px;color:#555;font-size:13px;line-height:1.4;">Ya está disponible el menú. Hacé clic para elegir:</p>' +
-    '<p style="margin:0 0 10px;text-align:center;">' +
-    '<a href="' + url + '" style="display:inline-block;padding:10px 24px;background:#1a73e8;color:#fff!important;text-decoration:none;font-size:14px;font-weight:600;border-radius:6px;">Elegir mi menú</a>' +
+    '<tr><td style="padding:28px 24px;">' +
+    '<p style="margin:0 0 16px;color:#1e293b;font-size:16px;line-height:1.5;">Hola <strong>' + nombre + '</strong>,</p>' +
+    '<p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">Ya está disponible el menú semanal. Hacé clic en el botón para ingresar y elegir tus opciones.</p>' +
+    '<p style="margin:0 0 20px;text-align:center;">' +
+    '<a href="' + url + '" style="display:inline-block;padding:14px 32px;background:#1a73e8;color:#ffffff!important;text-decoration:none;font-size:16px;font-weight:600;border-radius:10px;box-shadow:0 4px 14px rgba(26,115,232,0.4);">Elegir mi menú</a>' +
     '</p>' +
-    '<p style="margin:0;color:#777;font-size:11px;">Podés modificar hasta el cierre.</p>' +
+    '<p style="margin:0;color:#64748b;font-size:13px;text-align:center;">Podés modificar tu elección hasta el cierre del período.</p>' +
     '</td></tr>' +
-    '<tr><td style="padding:10px 20px;background:#f8f9fa;border-top:1px solid #eee;">' +
-    '<p style="margin:0;color:#888;font-size:11px;">RRHH / Almuerzos</p>' +
+    '<tr><td style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;">' +
+    '<p style="margin:0;color:#94a3b8;font-size:12px;">RRHH · Organización de Almuerzos</p>' +
     '</td></tr></table></td></tr></table></body></html>';
 }
 
@@ -193,29 +193,35 @@ function obtenerHojaRespuestas() {
 }
 
 // Guarda o actualiza la respuesta en la hoja (una fila por usuario por semana)
+// Busca por token+semana; si no encuentra, por email+semana para evitar duplicados
 function guardarRespuestaEnSheet(data) {
   var sheet = obtenerHojaRespuestas();
   var lastRow = sheet.getLastRow();
-  var weekKey = data.weekKey || data.weekNumber || '';
+  var weekKey = normalizarSemana(data.weekKey || data.weekNumber || '');
   var token = (data.userToken || '').toString();
   var nombre = data.userName || 'Colaborador';
-  var email = data.userEmail || '';
+  var email = (data.userEmail || '').toString().trim().toLowerCase();
   var turno = data.userTurn || '';
   var selections = data.selections || {};
   var details = data.details || {};
-  var row = [weekKey, token, nombre, email, turno];
+  var row = [weekKey, token, nombre, data.userEmail || '', turno];
   for (var i = 0; i < 5; i++) {
     var sel = selections[i];
     row.push(sel ? (sel.name + ' - ' + sel.dish) : '');
   }
   row.push('activo');
   row.push(typeof details === 'object' ? JSON.stringify(details) : (details || ''));
-  var dataRows = lastRow >= 2 ? sheet.getRange(2, 1, lastRow, 2).getValues() : [];
   var rowIndex = -1;
-  for (var r = 0; r < dataRows.length; r++) {
-    if (String(dataRows[r][0]) === String(weekKey) && String(dataRows[r][1]) === token) {
-      rowIndex = r + 2;
-      break;
+  if (lastRow >= 2) {
+    var dataRows = sheet.getRange(2, 1, lastRow, 4).getValues();
+    for (var r = 0; r < dataRows.length; r++) {
+      var rWk = normalizarSemana(dataRows[r][0]);
+      var rToken = String(dataRows[r][1]);
+      var rEmail = (dataRows[r][3] || '').toString().trim().toLowerCase();
+      if (rWk === weekKey && (rToken === token || (email && rEmail === email))) {
+        rowIndex = r + 2;
+        break;
+      }
     }
   }
   if (rowIndex > 0) {
@@ -428,6 +434,16 @@ function adminList(weekKey) {
       estado: row[10] || 'activo', semana: normalizarSemana(row[0]), details: det
     };
   });
+  // Deduplicar por email+semana (quedarse con el último = más reciente)
+  users = users.reverse();
+  var seen = {};
+  users = users.filter(function(u) {
+    var key = ((u.email || '').toLowerCase() || (u.token || '')) + '|' + (u.semana || '');
+    if (seen[key]) return false;
+    seen[key] = true;
+    return true;
+  });
+  users = users.reverse();
   return ContentService.createTextOutput(JSON.stringify({ ok: true, users: users, debug: { totalRows: datos.length, filtered: filtrados.length, weekKey: wk } })).setMimeType(ContentService.MimeType.JSON);
 }
 
