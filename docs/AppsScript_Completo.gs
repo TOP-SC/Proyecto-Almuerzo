@@ -13,12 +13,20 @@ function generateToken_() {
   return Utilities.getUuid();
 }
 
-// Obtiene la hoja de usuarios (por nombre o la primera si no existe)
+// Obtiene la hoja de usuarios: usuarios_completos, o hoja con "email" en A1, o la primera con datos
 function obtenerHojaUsuarios() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAME);
-  if (!sheet) sheet = ss.getSheets()[0];
-  return sheet;
+  if (sheet) return sheet;
+  const sheets = ss.getSheets();
+  for (var i = 0; i < sheets.length; i++) {
+    var a1 = (sheets[i].getRange(1, 1).getValue() || '').toString().toLowerCase().trim();
+    if (a1 === 'email' || a1 === 'correo' || a1 === 'e-mail') return sheets[i];
+  }
+  for (var j = 0; j < sheets.length; j++) {
+    if (sheets[j].getLastRow() >= 2) return sheets[j];
+  }
+  return sheets[0];
 }
 
 // Genera tokens para todos los usuarios que no tengan uno en la columna "token"
@@ -214,7 +222,7 @@ function guardarRespuestaEnSheet(data) {
   var rowIndex = -1;
   if (lastRow >= 2) {
     var dataRows = sheet.getRange(2, 1, lastRow, 4).getValues();
-    for (var r = 0; r < dataRows.length; r++) {
+    for (var r = dataRows.length - 1; r >= 0; r--) {
       var rWk = normalizarSemana(dataRows[r][0]);
       var rToken = String(dataRows[r][1]);
       var rEmail = (dataRows[r][3] || '').toString().trim().toLowerCase();

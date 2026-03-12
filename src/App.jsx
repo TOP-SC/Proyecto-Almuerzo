@@ -379,7 +379,7 @@ function App() {
         <h1 className="text-3xl font-medium text-slate-800 mb-2">Menú Semanal</h1>
         <p className="text-slate-600 mb-6">{weekNumber}</p>
         <p className="text-xl text-slate-700 mb-1">¡Hola {userName}!</p>
-        <p className="text-slate-500 text-sm mb-8">Elegí tu menú para cada día de la semana</p>
+        <p className="text-slate-500 text-sm mb-8">Elegí tu menú semanal para cada día</p>
         <button
           onClick={handleConfirmSelection}
           className="app-button app-button-primary inline-flex items-center gap-2"
@@ -404,9 +404,9 @@ function App() {
     }
     return (
       <div className="min-h-screen flex flex-col app-bg overflow-hidden">
-        <header className="flex-shrink-0 px-4 py-3 border-b border-slate-200/80 bg-white/95 backdrop-blur-sm flex items-center justify-between gap-4">
+        <header className="flex-shrink-0 px-4 py-2 border-b border-slate-200/80 bg-white/95 backdrop-blur-sm flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-lg font-medium text-slate-800">Elegí tu menú por día</h1>
+            <h1 className="text-base font-medium text-slate-800">Elegí tu menú semanal</h1>
             <p className="text-xs text-slate-500">{weekNumber} · {daysCompleted}/5 días</p>
           </div>
           {allDaysSelected && (
@@ -484,7 +484,7 @@ function App() {
             </div>
           </div>
           {/* Desktop: grid 5 columnas */}
-          <div className="hidden lg:grid grid-cols-5 gap-4 max-w-6xl w-full h-full max-h-[calc(100vh-120px)]">
+          <div className="hidden lg:grid grid-cols-5 gap-4 max-w-6xl w-full h-full max-h-[calc(100vh-100px)]">
             {weeklyMenu.map((day, dayIndex) => {
               const selected = selections[dayIndex];
               return (

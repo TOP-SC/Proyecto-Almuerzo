@@ -17,17 +17,20 @@ El Apps Script va **dentro** de ese Sheet, no es un archivo aparte.
 
 ### 2. Preparar la hoja de usuarios
 
-1. En la primera pestaña, asegurate de tener estas columnas en la fila 1:
+1. Creá una pestaña con **"email"** en la celda A1 (o la primera pestaña con datos en ese formato).  
+   El script busca: primero `usuarios_completos`, luego cualquier hoja con "email" en A1, o la primera con datos.
+
+2. Columnas en la fila 1:
    - **A:** email  
    - **B:** nombre  
    - **C:** token  
    - **D:** turno  
 
-2. Opcional: importar la plantilla  
+3. Opcional: importar la plantilla  
    - En esta carpeta está `plantilla_usuarios.csv`.  
    - En el Sheet: **Archivo** → **Importar** → **Subir** → elegí el CSV.  
-   - O cargá a mano los usuarios en las columnas A y B (email y nombre).  
-   - Las columnas C (token) y D (turno) las completa el script.
+   - O pegá a mano los datos (email, nombre, token, turno).  
+   - Las columnas C (token) y D (turno) las completa el script si faltan.
 
 ### 3. Agregar el Apps Script
 
@@ -36,7 +39,7 @@ El Apps Script va **dentro** de ese Sheet, no es un archivo aparte.
 3. Borrá todo el código que aparece por defecto.
 4. Copiá todo el contenido de `docs/AppsScript_Completo.gs` y pegálo ahí.
 5. **Guardar** (Ctrl+S).
-6. Revisá que `SHEET_NAME` en el script coincida con el nombre de tu pestaña (por defecto "Hoja 1").
+6. Si tu hoja de usuarios no se llama `usuarios_completos`, asegurate de tener **"email"** en la celda A1 (el script la detecta automáticamente).
 
 ### 4. Desplegar como Web App
 
