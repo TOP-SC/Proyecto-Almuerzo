@@ -412,7 +412,7 @@ function App() {
               <div className="text-sm font-semibold text-slate-600 mb-3 text-center border-b border-slate-100 pb-2">
                 {weeklyMenu[mobileDayTab]?.day}
               </div>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 flex-1 min-h-0">
                 {weeklyMenu[mobileDayTab]?.menus.map((menu) => {
                   const Icon = menu.icon;
                   const isSelected = selections[mobileDayTab]?.id === menu.id;
@@ -441,6 +441,15 @@ function App() {
                   );
                 })}
               </div>
+              <div className="mt-2 pt-2 border-t border-slate-100 flex-shrink-0">
+                <input
+                  type="text"
+                  placeholder="Detalle (ej: no papas)"
+                  value={details[mobileDayTab] || ''}
+                  onChange={e => setDetails(d => ({ ...d, [mobileDayTab]: e.target.value }))}
+                  className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
           </div>
           {/* Desktop: grid 5 columnas */}
@@ -448,11 +457,11 @@ function App() {
             {weeklyMenu.map((day, dayIndex) => {
               const selected = selections[dayIndex];
               return (
-                <div key={dayIndex} className="day-column h-full">
+                <div key={dayIndex} className="day-column h-full flex flex-col">
                   <div className="text-sm font-semibold text-slate-600 mb-3 text-center border-b border-slate-100 pb-2 flex-shrink-0">
                     {day.day}
                   </div>
-                  <div className="flex flex-col gap-2 flex-1 min-h-0">
+                  <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-auto">
                   {day.menus.map((menu) => {
                     const Icon = menu.icon;
                     const isSelected = selected?.id === menu.id;
@@ -481,6 +490,15 @@ function App() {
                     );
                   })}
                   </div>
+                  <div className="mt-2 pt-2 border-t border-slate-100 flex-shrink-0">
+                    <input
+                      type="text"
+                      placeholder="Detalle"
+                      value={details[dayIndex] || ''}
+                      onChange={e => setDetails(d => ({ ...d, [dayIndex]: e.target.value }))}
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
               );
             })}
@@ -488,24 +506,9 @@ function App() {
         </div>
         {showConfirmModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={() => !isSubmitting && setShowConfirmModal(false)}>
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl animate-scale-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-              <h3 className="text-lg font-medium text-slate-800 mb-2">¿Tu elección está completa?</h3>
-              <p className="text-slate-600 text-sm mb-4">¿Deseas enviar el pedido con las opciones seleccionadas?</p>
-              <div className="space-y-3 mb-4">
-                {[0,1,2,3,4].map(i => (
-                  <div key={i} className="text-sm">
-                    <span className="text-slate-500">{['Lunes','Martes','Miércoles','Jueves','Viernes'][i]}:</span>{' '}
-                    <span className="font-medium text-slate-700">{selections[i]?.name || '-'}</span>
-                    <input
-                      type="text"
-                      placeholder="Detalle (ej: no quiero papas)"
-                      value={details[i] || ''}
-                      onChange={e => setDetails(d => ({ ...d, [i]: e.target.value }))}
-                      className="mt-1 w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                ))}
-              </div>
+            <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl animate-scale-in" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-medium text-slate-800 mb-2">¿Enviar pedido?</h3>
+              <p className="text-slate-600 text-sm mb-4">Confirmá tu selección para enviar.</p>
               <div className="flex flex-col gap-2">
                 <button
                   onClick={handleFinalSubmit}

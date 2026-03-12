@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, LogOut, Search, XCircle, Edit2, UserPlus, Check, Loader2, LayoutDashboard, Users, Mail, FileText, PieChart, Send } from 'lucide-react';
+import { Shield, LogOut, Search, XCircle, Edit2, UserPlus, Check, Loader2, LayoutDashboard, Users, Mail, FileText, PieChart, Send, Building2 } from 'lucide-react';
 import { DriveService } from './driveService.js';
 import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
@@ -64,7 +64,7 @@ function AdminApp() {
   const [weekKeyOverride, setWeekKeyOverride] = useState('');
   const [lastDebug, setLastDebug] = useState(null);
   const [connectionOk, setConnectionOk] = useState(null);
-  const [activeView, setActiveView] = useState('listado');
+  const [activeView, setActiveView] = useState('dashboard');
 
   const menuWeek = getMenuWeek();
   const activeWeekKey = weekKeyOverride.trim() || menuWeek.weekKey;
@@ -86,7 +86,7 @@ function AdminApp() {
   }, [isAuth, adminSecret]);
 
   useEffect(() => {
-    if (isAuth && activeView === 'dashboard') {
+    if (isAuth && (activeView === 'dashboard' || activeView === 'empresa' || activeView === 'pendientes')) {
       loadEmpresaUsers();
     }
   }, [isAuth, activeView]);
@@ -381,30 +381,39 @@ function AdminApp() {
   }
 
   const sidebarItems = [
-    { id: 'listado', label: 'Listado de pedidos', icon: Users },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'menus', label: 'Menús', icon: PieChart },
+    { id: 'empresa', label: 'Por empresa', icon: Building2 },
+    { id: 'listado', label: 'Listado pedidos', icon: Users },
+    { id: 'pendientes', label: 'Quién no pidió', icon: Send },
   ];
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#f5f5f5' }}>
-      <aside className="w-56 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col">
+    <div className="min-h-screen flex bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+      <aside className="w-52 flex-shrink-0 bg-white/90 backdrop-blur-sm border-r border-slate-200/80 shadow-sm flex flex-col">
         <div className="p-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
-            <Shield className="w-6 h-6" style={{ color: '#1a73e8' }} />
-            <span className="font-semibold text-slate-800">Admin</span>
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 shadow-md">
+              <Shield className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <span className="font-semibold text-slate-800">Admin</span>
+              <p className="text-[11px] text-slate-500 leading-tight">{menuWeek.label}</p>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 mt-1">{menuWeek.label}</p>
         </div>
-        <nav className="flex-1 p-2">
+        <nav className="flex-1 p-2 space-y-0.5">
           {sidebarItems.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setActiveView(id)}
-              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                activeView === id ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeView === id
+                  ? 'bg-blue-500 text-white shadow-md shadow-blue-500/25'
+                  : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-800'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-4 h-4 flex-shrink-0" />
               {label}
             </button>
           ))}
@@ -412,7 +421,7 @@ function AdminApp() {
         <div className="p-2 border-t border-slate-100">
           <button
             onClick={() => { sessionStorage.removeItem('adminSecret'); setIsAuth(false); }}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
           >
             <LogOut className="w-4 h-4" /> Salir
           </button>
@@ -420,7 +429,7 @@ function AdminApp() {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+        <header className="bg-white/80 backdrop-blur border-b border-slate-200/80 px-4 py-2.5 flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <label className="text-sm text-slate-600">Semana:</label>
             <input
@@ -464,7 +473,25 @@ function AdminApp() {
           </div>
         )}
 
-        <div className="flex-1 p-4 overflow-auto">
+        <div className="flex-1 p-4 overflow-auto min-h-0">
+          {activeView === 'dashboard' && (
+            <DashboardView
+              menuChartData={menuChartData}
+              confirmChartData={confirmChartData}
+              handleSendOpening={handleSendOpening}
+              handlePdfGmail={handlePdfGmail}
+              actionLoading={actionLoading}
+            />
+          )}
+          {activeView === 'menus' && (
+            <MenusView menuCounts={menuCounts} />
+          )}
+          {activeView === 'empresa' && (
+            <EmpresaView
+              sommierUsers={usersThisWeek.filter(u => (u.email || '').toLowerCase().includes('@sommiercenter'))}
+              btimeUsers={usersThisWeek.filter(u => (u.email || '').toLowerCase().includes('@btime'))}
+            />
+          )}
           {activeView === 'listado' && (
             <ListView
               filteredUsers={filteredUsers}
@@ -485,16 +512,9 @@ function AdminApp() {
               lastDebug={lastDebug}
             />
           )}
-
-          {activeView === 'dashboard' && (
-            <DashboardView
-              menuChartData={menuChartData}
-              confirmChartData={confirmChartData}
-              sommierCount={sommierCount}
-              btimeCount={btimeCount}
+          {activeView === 'pendientes' && (
+            <PendientesView
               usersWhoNotOrdered={usersWhoNotOrdered}
-              handleSendOpening={handleSendOpening}
-              handlePdfGmail={handlePdfGmail}
               handleSendReminder={handleSendReminder}
               actionLoading={actionLoading}
             />
@@ -516,20 +536,19 @@ function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setS
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar por nombre o email..."
-            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
         <button
           onClick={() => setShowAddForm(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white"
-          style={{ background: '#34a853' }}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-white shadow-md shadow-green-500/20 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 transition-all"
         >
           <UserPlus className="w-4 h-4" /> Agregar invitado
         </button>
       </div>
 
       {showAddForm && (
-        <div className="bg-white rounded-xl shadow p-6 mb-6">
+        <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-6 mb-6">
           <h3 className="font-semibold text-slate-800 mb-4">Agregar invitado</h3>
           <input
             type="text"
@@ -583,7 +602,7 @@ function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setS
       ) : (
         <div className="space-y-3">
           {filteredUsers.map(user => (
-            <div key={`${user.token}-${user.semana || ''}`} className="bg-white rounded-xl shadow p-4">
+            <div key={`${user.token}-${user.semana || ''}`} className="bg-white/95 backdrop-blur rounded-xl shadow-md border border-slate-100 p-4 hover:shadow-lg transition-shadow">
                 {editingUser?.token === user.token && editingUser?.semana === user.semana ? (
                 <EditForm
                   user={user}
@@ -630,19 +649,27 @@ function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setS
   );
 }
 
-function DashboardView({ menuChartData, confirmChartData, sommierCount, btimeCount, usersWhoNotOrdered, handleSendOpening, handlePdfGmail, handleSendReminder, actionLoading }) {
+const MENU_CARD_COLORS = {
+  'MENU 1': { bg: 'from-red-500 to-red-600', shadow: 'shadow-red-500/30', text: 'text-white' },
+  'MENU 2': { bg: 'from-green-500 to-emerald-600', shadow: 'shadow-green-500/30', text: 'text-white' },
+  'MENU 3': { bg: 'from-blue-500 to-blue-600', shadow: 'shadow-blue-500/30', text: 'text-white' },
+  'MENU 4': { bg: 'from-amber-500 to-orange-500', shadow: 'shadow-amber-500/30', text: 'text-white' },
+  'MENU 5': { bg: 'from-violet-500 to-purple-600', shadow: 'shadow-violet-500/30', text: 'text-white' },
+  'REMOTO': { bg: 'from-cyan-500 to-teal-500', shadow: 'shadow-cyan-500/30', text: 'text-white' },
+  'SIN VIANDA': { bg: 'from-slate-400 to-slate-500', shadow: 'shadow-slate-400/30', text: 'text-white' },
+};
+
+function DashboardView({ menuChartData, confirmChartData, handleSendOpening, handlePdfGmail, actionLoading }) {
   return (
-    <div className="max-w-5xl space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl shadow p-4">
-          <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
-            <PieChart className="w-4 h-4" /> Menús elegidos
-          </h3>
+    <div className="max-w-4xl h-full flex flex-col gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
+        <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 p-4">
+          <h3 className="font-semibold text-slate-700 mb-3 text-sm uppercase tracking-wide">Menús elegidos</h3>
           {menuChartData.length > 0 ? (
-            <div className="h-48">
+            <div className="h-40">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPie>
-                  <Pie data={menuChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, value }) => `${name}: ${value}`}>
+                  <Pie data={menuChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label={({ name, value }) => `${name}: ${value}`}>
                     {menuChartData.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
@@ -652,18 +679,16 @@ function DashboardView({ menuChartData, confirmChartData, sommierCount, btimeCou
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-slate-500 text-sm py-8 text-center">Sin datos aún</p>
+            <p className="text-slate-400 text-sm py-6 text-center">Sin datos aún</p>
           )}
         </div>
-        <div className="bg-white rounded-xl shadow p-4">
-          <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
-            <PieChart className="w-4 h-4" /> Confirmó / No confirmó
-          </h3>
+        <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-100 p-4">
+          <h3 className="font-semibold text-slate-700 mb-3 text-sm uppercase tracking-wide">Confirmó / No confirmó</h3>
           {confirmChartData.some(d => d.value > 0) ? (
-            <div className="h-48">
+            <div className="h-40">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPie>
-                  <Pie data={confirmChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, value }) => `${name}: ${value}`}>
+                  <Pie data={confirmChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label={({ name, value }) => `${name}: ${value}`}>
                     {confirmChartData.map((e, i) => (
                       <Cell key={i} fill={e.color} />
                     ))}
@@ -673,72 +698,128 @@ function DashboardView({ menuChartData, confirmChartData, sommierCount, btimeCou
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-slate-500 text-sm py-8 text-center">Sin datos aún</p>
+            <p className="text-slate-400 text-sm py-6 text-center">Sin datos aún</p>
           )}
         </div>
       </div>
-
-      <div className="bg-white rounded-xl shadow p-4">
-        <h3 className="font-semibold text-slate-800 mb-3">Por dominio</h3>
-        <div className="flex gap-6">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-blue-500" />
-            <span>@sommiercenter: <strong>{sommierCount}</strong></span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-amber-500" />
-            <span>@btime: <strong>{btimeCount}</strong></span>
-          </div>
-        </div>
+      <div className="flex flex-wrap gap-3 flex-shrink-0">
+        <button
+          onClick={handleSendOpening}
+          disabled={actionLoading === 'opening'}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all bg-gradient-to-r from-blue-500 to-blue-600"
+        >
+          {actionLoading === 'opening' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+          Enviar mails de apertura
+        </button>
+        <button
+          onClick={handlePdfGmail}
+          disabled={actionLoading === 'pdf'}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all bg-gradient-to-r from-green-500 to-emerald-600"
+        >
+          {actionLoading === 'pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+          PDF + Abrir Gmail
+        </button>
       </div>
+    </div>
+  );
+}
 
-      <div className="bg-white rounded-xl shadow p-4">
-        <h3 className="font-semibold text-slate-800 mb-3">Quién pidió / Quién no pidió</h3>
-        <p className="text-slate-600 text-sm mb-3">Personas que aún no enviaron su menú:</p>
-        {usersWhoNotOrdered.length > 0 ? (
-          <>
-            <ul className="list-disc list-inside text-sm text-slate-600 mb-4 max-h-40 overflow-y-auto">
-              {usersWhoNotOrdered.map((u, i) => (
-                <li key={i}>{u.nombre || u.email} {u.email && <span className="text-slate-400">({u.email})</span>}</li>
-              ))}
-            </ul>
-            <button
-              onClick={handleSendReminder}
-              disabled={actionLoading === 'reminder'}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white"
-              style={{ background: '#ea4335' }}
+function MenusView({ menuCounts }) {
+  const total = Object.values(menuCounts).reduce((a, b) => a + b, 0);
+  const entries = Object.entries(menuCounts).sort((a, b) => b[1] - a[1]);
+  return (
+    <div className="max-w-4xl">
+      <h2 className="text-lg font-semibold text-slate-800 mb-4">Cantidad por menú</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        {entries.map(([name, count]) => {
+          const t = MENU_CARD_COLORS[name] || { bg: 'from-slate-400 to-slate-500', shadow: 'shadow-slate-400/30', text: 'text-white' };
+          return (
+            <div
+              key={name}
+              className={`rounded-2xl bg-gradient-to-br ${t.bg} p-5 shadow-lg ${t.shadow} flex flex-col items-center justify-center min-h-[120px]`}
             >
-              {actionLoading === 'reminder' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              Enviar recordatorio
-            </button>
-          </>
-        ) : (
-          <p className="text-slate-500 text-sm">Todos ya pidieron o no hay lista de empresa cargada.</p>
-        )}
+              <span className="text-3xl font-bold text-white drop-shadow-sm">{count}</span>
+              <span className="text-sm font-medium text-white/90 mt-1 text-center">{name}</span>
+            </div>
+          );
+        })}
       </div>
+      {total > 0 && (
+        <p className="mt-4 text-sm text-slate-500">Total: {total} selecciones</p>
+      )}
+    </div>
+  );
+}
 
-      <div className="bg-white rounded-xl shadow p-4">
-        <h3 className="font-semibold text-slate-800 mb-3">Acciones</h3>
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={handleSendOpening}
-            disabled={actionLoading === 'opening'}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white"
-            style={{ background: '#1a73e8' }}
-          >
-            {actionLoading === 'opening' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-            Enviar mails de apertura
-          </button>
-          <button
-            onClick={handlePdfGmail}
-            disabled={actionLoading === 'pdf'}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-white"
-            style={{ background: '#34a853' }}
-          >
-            {actionLoading === 'pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-            PDF + Abrir Gmail
-          </button>
+function menuSummary(user) {
+  const days = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
+  return days.map(d => extraerMenuShort(user[d])).join(' · ');
+}
+
+function EmpresaView({ sommierUsers, btimeUsers }) {
+  return (
+    <div className="max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-4">
+        <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-blue-500" />
+          @sommiercenter ({sommierUsers.length})
+        </h3>
+        <div className="max-h-[60vh] overflow-y-auto space-y-1.5 text-sm">
+          {sommierUsers.map((u, i) => (
+            <div key={i} className="flex justify-between items-center gap-2 py-1.5 border-b border-slate-50 last:border-0">
+              <span className="flex-1 truncate font-medium text-slate-700">{u.nombre || u.email}</span>
+              <span className="text-slate-500 text-xs truncate max-w-[200px]">{menuSummary(u)}</span>
+            </div>
+          ))}
+          {sommierUsers.length === 0 && <p className="text-slate-400 py-4">Ninguno</p>}
         </div>
+      </div>
+      <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-4">
+        <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-amber-500" />
+          @btime ({btimeUsers.length})
+        </h3>
+        <div className="max-h-[60vh] overflow-y-auto space-y-1.5 text-sm">
+          {btimeUsers.map((u, i) => (
+            <div key={i} className="flex justify-between items-center gap-2 py-1.5 border-b border-slate-50 last:border-0">
+              <span className="flex-1 truncate font-medium text-slate-700">{u.nombre || u.email}</span>
+              <span className="text-slate-500 text-xs truncate max-w-[200px]">{menuSummary(u)}</span>
+            </div>
+          ))}
+          {btimeUsers.length === 0 && <p className="text-slate-400 py-4">Ninguno</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PendientesView({ usersWhoNotOrdered, handleSendReminder, actionLoading }) {
+  return (
+    <div className="max-w-4xl">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <h2 className="text-lg font-semibold text-slate-800">Quién no pidió</h2>
+        <button
+          onClick={handleSendReminder}
+          disabled={actionLoading === 'reminder'}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-white bg-gradient-to-r from-red-500 to-red-600 shadow-lg shadow-red-500/25"
+        >
+          {actionLoading === 'reminder' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          Enviar recordatorio
+        </button>
+      </div>
+      <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-4 max-h-[60vh] overflow-y-auto">
+        {usersWhoNotOrdered.length > 0 ? (
+          <ul className="space-y-2">
+            {usersWhoNotOrdered.map((u, i) => (
+              <li key={i} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+                <span className="font-medium text-slate-700">{u.nombre || u.email}</span>
+                {u.email && <span className="text-slate-400 text-sm truncate">{u.email}</span>}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-slate-500 py-8 text-center">Todos ya pidieron o no hay lista de empresa cargada.</p>
+        )}
       </div>
     </div>
   );
