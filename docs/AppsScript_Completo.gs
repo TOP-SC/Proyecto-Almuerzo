@@ -786,13 +786,20 @@ function adminPdfGmail(weekKey) {
     }
     var filas = [['Usuario', 'Turno', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Detalle']];
     var contadorMenus = {};
+    var contadorPorDia = [{}, {}, {}, {}, {}];
     filtrados.forEach(function(row) {
       var det = {};
       try { var dStr = (row[11] || '').toString(); if (dStr) det = JSON.parse(dStr); } catch (e) {}
       var detStr = [];
       for (var i = 0; i < 5; i++) { if (det[i]) detStr.push(['Lun','Mar','Mié','Jue','Vie'][i] + ': ' + det[i]); }
       var m5 = extraerNumeroMenu(row[5]), m6 = extraerNumeroMenu(row[6]), m7 = extraerNumeroMenu(row[7]), m8 = extraerNumeroMenu(row[8]), m9 = extraerNumeroMenu(row[9]);
-      [m5, m6, m7, m8, m9].forEach(function(m) { if (m) contadorMenus[m] = (contadorMenus[m] || 0) + 1; });
+      var menus = [m5, m6, m7, m8, m9];
+      menus.forEach(function(m, i) {
+        if (m) {
+          contadorMenus[m] = (contadorMenus[m] || 0) + 1;
+          contadorPorDia[i][m] = (contadorPorDia[i][m] || 0) + 1;
+        }
+      });
       filas.push([
         (row[2] || '').toString(),
         soloTurno(row[4]),
@@ -800,24 +807,38 @@ function adminPdfGmail(weekKey) {
         detStr.join(' | ') || ''
       ]);
     });
-    // Resumen de cantidades al final
+    // Resumen semanal
     filas.push(['', '', '', '', '', '', '', '']);
-    filas.push(['RESUMEN - Cantidad por menú', '', '', '', '', '', '', '']);
+    filas.push(['RESUMEN SEMANAL', '', '', '', '', '', '', '']);
     var menuOrden = ['Menu 1', 'Menu 2', 'Menu 3', 'Menu 4', 'Menu 5', 'REMOTO', 'SIN VIANDA'];
     var otros = Object.keys(contadorMenus).filter(function(k) { return menuOrden.indexOf(k) === -1; });
     menuOrden.concat(otros).forEach(function(m) {
       if (contadorMenus[m]) filas.push([m + ': ' + contadorMenus[m], '', '', '', '', '', '', '']);
+    });
+    // Resumen por día (aprovecha columnas Lunes..Viernes)
+    filas.push(['', '', '', '', '', '', '', '']);
+    filas.push(['RESUMEN POR DÍA', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', '', '']);
+    menuOrden.concat(otros).forEach(function(m) {
+      var tieneAlgo = false;
+      var row = [m];
+      for (var d = 0; d < 5; d++) {
+        var c = contadorPorDia[d][m] || 0;
+        row.push(c > 0 ? c : '');
+        if (c > 0) tieneAlgo = true;
+      }
+      row.push('', '');
+      if (tieneAlgo) filas.push(row);
     });
     hoja.getRange(1, 1, filas.length, 8).setValues(filas);
     hoja.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#1e3a5f').setFontColor('#ffffff');
     for (var r = 2; r <= filtrados.length + 1; r++) {
       hoja.getRange(r, 1, r, 8).setBackground(r % 2 === 0 ? '#f8fafc' : '#ffffff');
     }
-    var resumenRow = -1;
     for (var ri = 0; ri < filas.length; ri++) {
-      if ((filas[ri][0] || '').toString().indexOf('RESUMEN') !== -1) { resumenRow = ri; break; }
+      if ((filas[ri][0] || '').toString().indexOf('RESUMEN') !== -1) {
+        hoja.getRange(ri + 1, 1, ri + 1, 8).setFontWeight('bold').setBackground('#e2e8f0');
+      }
     }
-    if (resumenRow >= 0) hoja.getRange(resumenRow + 1, 1, resumenRow + 1, 8).setFontWeight('bold').setBackground('#e2e8f0');
     hoja.autoResizeColumns(1, 8);
     SpreadsheetApp.flush();
     var pdfBlob = ssNew.getAs('application/pdf');
