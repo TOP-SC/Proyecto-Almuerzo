@@ -8,22 +8,22 @@ const HOJA_RESPUESTAS = 'Respuestas';
 const HOJA_CONFIG = 'Config';
 const COCINA_EMAIL = 'juan.billiot@sommiercenter.com'; // Email de la gente de viandas/cocina (confirmar)
 const ADMIN_SECRET = 'Admin.2026'; // Contraseña admin
-// Si la lista de usuarios está en OTRO spreadsheet: pegá acá el ID. Vacío = mismo spreadsheet.
+// Spreadsheet con la lista de usuarios. Vacío = spreadsheet activo.
 const USUARIOS_SPREADSHEET_ID = '1l9E5kuJVmUrei6PLUnBdwpGoGvTDSRIH0k0GapdfZyk';
-// GID de la hoja de usuarios (número en la URL después de #gid=). 0 = detectar automático.
+// GID de la hoja de usuarios (número en la URL #gid=). 0 = detectar automático.
 const USUARIOS_SHEET_GID = 877468020;
 
 function generateToken_() {
   return Utilities.getUuid();
 }
 
-// Obtiene la hoja de usuarios. Orden: 1) Config "HojaUsuarios", 2) usuarios_completos, 3) hoja con "email" en A1, 4) primera con datos (excl. Respuestas/Config)
+// Obtiene la hoja de usuarios. Orden: 1) por GID, 2) Config HojaUsuarios, 3) usuarios_completos, 4) hoja con email en A1, 5) hoja con @ en col A
 function obtenerHojaUsuarios() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   if (typeof USUARIOS_SPREADSHEET_ID === 'string' && USUARIOS_SPREADSHEET_ID.trim()) {
-    try { ss = SpreadsheetApp.openById(USUARIOS_SPREADSHEET_ID.trim()); } catch (e) {}
+    try { ss = SpreadsheetApp.openById(USUARIOS_SPREADSHEET_ID.trim()); } catch (e) { ss = SpreadsheetApp.getActiveSpreadsheet(); }
   }
-  const ssConst = ss;
+  var ssConst = ss;
   try {
     var cfg = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_CONFIG);
     if (cfg && cfg.getLastRow() >= 1) {
@@ -43,7 +43,14 @@ function obtenerHojaUsuarios() {
   if (USUARIOS_SHEET_GID && USUARIOS_SHEET_GID > 0) {
     var sheets = ssConst.getSheets();
     for (var g = 0; g < sheets.length; g++) {
-      if (sheets[g].getSheetId() == USUARIOS_SHEET_GID) return sheets[g];
+      try { if (sheets[g].getSheetId() == USUARIOS_SHEET_GID) return sheets[g]; } catch (gidErr) {}
+    }
+    var ssAlt = SpreadsheetApp.getActiveSpreadsheet();
+    if (ssAlt.getId() !== ssConst.getId()) {
+      sheets = ssAlt.getSheets();
+      for (var g2 = 0; g2 < sheets.length; g2++) {
+        try { if (sheets[g2].getSheetId() == USUARIOS_SHEET_GID) return sheets[g2]; } catch (gidErr2) {}
+      }
     }
   }
   var sheet = ssConst.getSheetByName(SHEET_NAME);
@@ -303,11 +310,21 @@ function doPostImpl(e) {
     }
 
     var data = JSON.parse(e.postData.contents);
-    var action = (data && data.action) ? data.action : 'submit';
+    var action = (data && data.action) ? String(data.action).trim() : 'submit';
 
     if (action === 'get_cycle_status') {
       var wk = normalizarSemana(data.weekKey || '');
       var abierto = getCycleStatus(wk);
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, abierto: abierto })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'admin_cycle_open' || action === 'admin_cycle_close') {
+      var sec = (data.adminSecret || '').toString().trim();
+      if (sec !== ADMIN_SECRET) {
+        return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Acceso denegado' })).setMimeType(ContentService.MimeType.JSON);
+      }
+      var abierto = (action === 'admin_cycle_open');
+      setCycleState(data.weekKey || '', abierto);
       return ContentService.createTextOutput(JSON.stringify({ ok: true, abierto: abierto })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -577,16 +594,16 @@ function adminAdd(nombre, turno, weekKey, selections, weeklyMenu) {
 function adminListEmpresa() {
   try {
     var sheet = obtenerHojaUsuarios();
-    if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: true, users: [] })).setMimeType(ContentService.MimeType.JSON);
+    if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: true, users: [], debug: 'noSheet' })).setMimeType(ContentService.MimeType.JSON);
     var lastRow = sheet.getLastRow();
     if (lastRow < 2) {
-      return ContentService.createTextOutput(JSON.stringify({ ok: true, users: [] })).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, users: [], debug: 'lastRow<2', sheetName: sheet.getName() })).setMimeType(ContentService.MimeType.JSON);
     }
     var data = sheet.getRange(2, 1, lastRow, 4).getValues();
     var users = [];
     data.forEach(function(row) {
       var email = (row[0] || '').toString().trim();
-      if (!email) return;
+      if (!email || email.indexOf('@') === -1) return;
       users.push({
         email: email,
         nombre: (row[1] || '').toString().trim(),
