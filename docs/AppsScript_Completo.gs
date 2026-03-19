@@ -17,16 +17,19 @@ function generateToken_() {
   return Utilities.getUuid();
 }
 
-// Obtiene la hoja de usuarios. Orden: 1) por GID, 2) Config HojaUsuarios, 3) usuarios_completos, 4) hoja con email en A1, 5) hoja con @ en col A
+// Obtiene la hoja de usuarios. Si USUARIOS_SPREADSHEET_ID está definido, usa ese (evita getActiveSpreadsheet en scripts standalone).
 function obtenerHojaUsuarios() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ssConst = null;
   if (typeof USUARIOS_SPREADSHEET_ID === 'string' && USUARIOS_SPREADSHEET_ID.trim()) {
-    try { ss = SpreadsheetApp.openById(USUARIOS_SPREADSHEET_ID.trim()); } catch (e) { ss = SpreadsheetApp.getActiveSpreadsheet(); }
+    try { ssConst = SpreadsheetApp.openById(USUARIOS_SPREADSHEET_ID.trim()); } catch (e) {}
   }
-  var ssConst = ss;
+  if (!ssConst) {
+    try { ssConst = SpreadsheetApp.getActiveSpreadsheet(); } catch (e) { return null; }
+  }
   try {
-    var cfg = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_CONFIG);
-    if (cfg && cfg.getLastRow() >= 1) {
+    var cfgSs = obtenerSpreadsheetPrincipal();
+    var cfg = cfgSs ? cfgSs.getSheetByName(HOJA_CONFIG) : null;
+    if (cfg && cfg.getLastRow && cfg.getLastRow() >= 1) {
       var cfgData = cfg.getRange(1, 1, cfg.getLastRow(), 2).getValues();
       for (var c = 0; c < cfgData.length; c++) {
         if ((cfgData[c][0] || '').toString().trim().toLowerCase() === 'hojausuarios') {
@@ -45,8 +48,9 @@ function obtenerHojaUsuarios() {
     for (var g = 0; g < sheets.length; g++) {
       try { if (sheets[g].getSheetId() == USUARIOS_SHEET_GID) return sheets[g]; } catch (gidErr) {}
     }
-    var ssAlt = SpreadsheetApp.getActiveSpreadsheet();
-    if (ssAlt.getId() !== ssConst.getId()) {
+    var ssAlt = null;
+    try { ssAlt = SpreadsheetApp.getActiveSpreadsheet(); } catch (ea) {}
+    if (ssAlt && ssAlt.getId() !== ssConst.getId()) {
       sheets = ssAlt.getSheets();
       for (var g2 = 0; g2 < sheets.length; g2++) {
         try { if (sheets[g2].getSheetId() == USUARIOS_SHEET_GID) return sheets[g2]; } catch (gidErr2) {}
@@ -80,12 +84,13 @@ function obtenerHojaUsuarios() {
     if (n === HOJA_RESPUESTAS || n === HOJA_CONFIG) continue;
     if (sheets[j].getLastRow() >= 2) return sheets[j];
   }
-  return sheets[0] || null;
+  return (sheets && sheets.length > 0) ? sheets[0] : null;
 }
 
 // Genera tokens para todos los usuarios que no tengan uno en la columna "token"
 function generarTokensSiFaltan() {
   const sheet = obtenerHojaUsuarios();
+  if (!sheet) return;
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return;
 
@@ -188,11 +193,20 @@ function doGet(e) {
 }
 
 // === CICLO APERTURA/CIERRE ===
+function obtenerSpreadsheetPrincipal() {
+  if (typeof USUARIOS_SPREADSHEET_ID === 'string' && USUARIOS_SPREADSHEET_ID.trim()) {
+    try { return SpreadsheetApp.openById(USUARIOS_SPREADSHEET_ID.trim()); } catch (e) {}
+  }
+  try { return SpreadsheetApp.getActiveSpreadsheet(); } catch (e) { return null; }
+}
+
 function obtenerHojaConfig() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = obtenerSpreadsheetPrincipal();
+  if (!ss) return null;
   var sheet = ss.getSheetByName(HOJA_CONFIG);
   if (!sheet) {
     sheet = ss.insertSheet(HOJA_CONFIG);
+    if (!sheet) return null;
     sheet.getRange(1, 1, 1, 2).setValues([['Semana', 'Estado']]);
     sheet.getRange(1, 1, 1, 2).setFontWeight('bold');
   }
@@ -202,6 +216,7 @@ function obtenerHojaConfig() {
 function getCycleStatus(weekKey) {
   var wk = normalizarSemana(weekKey || '');
   var sheet = obtenerHojaConfig();
+  if (!sheet) return true;
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return true; // Por defecto abierto si no hay config
   var data = sheet.getRange(2, 1, lastRow, 2).getValues();
@@ -216,6 +231,7 @@ function getCycleStatus(weekKey) {
 function setCycleState(weekKey, abierto) {
   var wk = normalizarSemana(weekKey || '');
   var sheet = obtenerHojaConfig();
+  if (!sheet) return false;
   var lastRow = sheet.getLastRow();
   var estado = abierto ? 'abierto' : 'cerrado';
   if (lastRow >= 2) {
@@ -223,11 +239,12 @@ function setCycleState(weekKey, abierto) {
     for (var i = 0; i < data.length; i++) {
       if (normalizarSemana(data[i][0]) === wk) {
         sheet.getRange(2 + i, 2).setValue(estado);
-        return;
+        return true;
       }
     }
   }
   sheet.appendRow([wk, estado]);
+  return true;
 }
 
 // Normaliza semana para comparación (Date o string -> YYYY-MM-DD)
@@ -241,7 +258,8 @@ function normalizarSemana(val) {
 
 // Obtiene o crea la hoja "Respuestas" (col 11 = Estado, col 12 = Detalle JSON)
 function obtenerHojaRespuestas() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = obtenerSpreadsheetPrincipal();
+  if (!ss) return null;
   var sheet = ss.getSheetByName(HOJA_RESPUESTAS);
   if (!sheet) {
     sheet = ss.insertSheet(HOJA_RESPUESTAS);
@@ -258,6 +276,7 @@ function obtenerHojaRespuestas() {
 // Busca por token+semana; si no encuentra, por email+semana para evitar duplicados
 function guardarRespuestaEnSheet(data) {
   var sheet = obtenerHojaRespuestas();
+  if (!sheet) throw new Error('No se pudo acceder al spreadsheet. Verificá USUARIOS_SPREADSHEET_ID.');
   var lastRow = sheet.getLastRow();
   var weekKey = normalizarSemana(data.weekKey || data.weekNumber || '');
   var token = (data.userToken || '').toString();
@@ -324,7 +343,10 @@ function doPostImpl(e) {
         return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Acceso denegado' })).setMimeType(ContentService.MimeType.JSON);
       }
       var abierto = (action === 'admin_cycle_open');
-      setCycleState(data.weekKey || '', abierto);
+      var ok = setCycleState(data.weekKey || '', abierto);
+      if (ok === false) {
+        return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder al spreadsheet. Verificá USUARIOS_SPREADSHEET_ID y permisos.' })).setMimeType(ContentService.MimeType.JSON);
+      }
       return ContentService.createTextOutput(JSON.stringify({ ok: true, abierto: abierto })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -481,6 +503,7 @@ function handleAdminAction(data) {
 
 function adminList(weekKey) {
   var sheet = obtenerHojaRespuestas();
+  if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder al spreadsheet' })).setMimeType(ContentService.MimeType.JSON);
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) {
     return ContentService.createTextOutput(JSON.stringify({ ok: true, users: [], debug: 'lastRow<2' })).setMimeType(ContentService.MimeType.JSON);
@@ -522,6 +545,7 @@ function adminList(weekKey) {
 function adminCancel(token, weekKey, nombre) {
   try {
   var sheet = obtenerHojaRespuestas();
+  if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder al spreadsheet' })).setMimeType(ContentService.MimeType.JSON);
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos' })).setMimeType(ContentService.MimeType.JSON);
   var datos = sheet.getRange(2, 1, lastRow, 11).getValues();
@@ -543,6 +567,7 @@ function adminCancel(token, weekKey, nombre) {
 function adminUpdate(token, weekKey, selections, nombre, details) {
   try {
   var sheet = obtenerHojaRespuestas();
+  if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder al spreadsheet' })).setMimeType(ContentService.MimeType.JSON);
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos' })).setMimeType(ContentService.MimeType.JSON);
   var datos = sheet.getRange(2, 1, lastRow, 12).getValues();
@@ -574,6 +599,7 @@ function adminUpdate(token, weekKey, selections, nombre, details) {
 function adminAdd(nombre, turno, weekKey, selections, weeklyMenu) {
   try {
   var sheet = obtenerHojaRespuestas();
+  if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder al spreadsheet' })).setMimeType(ContentService.MimeType.JSON);
   var token = 'invitado-' + Utilities.getUuid().toString().slice(0, 8);
   var row = [weekKey || '', token, nombre || 'Invitado', '', turno || '1', '', '', '', '', '', 'activo'];
   for (var i = 0; i < 5; i++) {
@@ -594,7 +620,7 @@ function adminAdd(nombre, turno, weekKey, selections, weeklyMenu) {
 function adminListEmpresa() {
   try {
     var sheet = obtenerHojaUsuarios();
-    if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: true, users: [], debug: 'noSheet' })).setMimeType(ContentService.MimeType.JSON);
+    if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder a la hoja de usuarios. Verificá USUARIOS_SPREADSHEET_ID y que el script tenga permisos.', users: [] })).setMimeType(ContentService.MimeType.JSON);
     var lastRow = sheet.getLastRow();
     if (lastRow < 2) {
       return ContentService.createTextOutput(JSON.stringify({ ok: true, users: [], debug: 'lastRow<2', sheetName: sheet.getName() })).setMimeType(ContentService.MimeType.JSON);
@@ -622,6 +648,7 @@ function adminListEmpresa() {
 function adminSendOpening() {
   try {
     var sheet = obtenerHojaUsuarios();
+    if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder a la hoja de usuarios' })).setMimeType(ContentService.MimeType.JSON);
     generarTokensSiFaltan();
     var lastRow = sheet.getLastRow();
     if (lastRow < 2) {
@@ -657,6 +684,7 @@ function adminSendOpening() {
 function adminPdfGmail(weekKey) {
   try {
     var sheet = obtenerHojaRespuestas();
+    if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder al spreadsheet' })).setMimeType(ContentService.MimeType.JSON);
     var lastRow = sheet.getLastRow();
     if (lastRow < 2) {
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos para la semana' })).setMimeType(ContentService.MimeType.JSON);
@@ -711,6 +739,7 @@ function adminSendReminder(weekKey) {
   try {
     var sheetResp = obtenerHojaRespuestas();
     var sheetEmp = obtenerHojaUsuarios();
+    if (!sheetResp || !sheetEmp) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder al spreadsheet o a la hoja de usuarios' })).setMimeType(ContentService.MimeType.JSON);
     var lastRow = sheetResp.getLastRow();
     var wk = normalizarSemana(weekKey || '');
     var quienesPidieron = {};
