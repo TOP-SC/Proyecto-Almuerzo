@@ -364,8 +364,8 @@ function App() {
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-200 flex items-center justify-center">
           <span className="text-2xl">🔒</span>
         </div>
-        <h1 className="text-2xl font-medium text-slate-800 mb-2">Período cerrado</h1>
-        <p className="text-slate-600 mb-4">El período para elegir el menú de esta semana ya finalizó.</p>
+        <h1 className="text-2xl font-medium text-slate-800 mb-2">Ciclo de elección cerrado</h1>
+        <p className="text-slate-600 mb-4">Se cerró el período para elegir el menú de esta semana. Si necesitás modificar tu elección, contactá a RRHH.</p>
         <p className="text-slate-500 text-sm">{weekNumber}</p>
         <p className="text-slate-400 text-sm mt-4">Si tenés dudas, contactá a RRHH.</p>
       </div>
@@ -420,9 +420,9 @@ function App() {
             </button>
           )}
         </header>
-        <div className="flex-1 flex items-center justify-center p-5 min-h-0 overflow-auto">
+        <div className="flex-1 flex flex-col items-center p-2 min-h-0 overflow-hidden">
           {/* Móvil: tabs por día */}
-          <div className="lg:hidden w-full max-w-2xl">
+          <div className="lg:hidden w-full max-w-2xl flex-1 min-h-0 overflow-auto">
             <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
               {weeklyMenu.map((day, i) => (
                 <button
@@ -465,14 +465,14 @@ function App() {
                         <Icon className="w-5 h-5 flex-shrink-0 opacity-80" style={{ color: theme.shimmer }} />
                       )}
                       <div className="min-w-0 flex-1 overflow-hidden">
-                        <div className="font-medium text-slate-800 text-sm">{menu.name}</div>
-                        <div className="text-slate-500 text-sm leading-snug break-words line-clamp-3">{menu.dish}</div>
+                        <div className="font-medium text-slate-800 text-xs">{menu.name}</div>
+                        <div className="text-slate-500 text-xs leading-snug break-words line-clamp-2">{menu.dish}</div>
                       </div>
                     </button>
                   );
                 })}
               </div>
-              <div className="mt-2 pt-2 border-t border-slate-100 flex-shrink-0">
+              <div className="mt-1 pt-1 border-t border-slate-100 flex-shrink-0">
                 <input
                   type="text"
                   placeholder="Detalle (ej: no papas)"
@@ -484,15 +484,15 @@ function App() {
             </div>
           </div>
           {/* Desktop: grid 5 columnas */}
-          <div className="hidden lg:grid grid-cols-5 gap-4 max-w-6xl w-full h-full max-h-[calc(100vh-100px)]">
+          <div className="hidden lg:grid grid-cols-5 gap-2 max-w-6xl w-full flex-1 min-h-0 self-stretch">
             {weeklyMenu.map((day, dayIndex) => {
               const selected = selections[dayIndex];
               return (
-                <div key={dayIndex} className="day-column h-full flex flex-col">
-                  <div className="text-sm font-semibold text-slate-600 mb-3 text-center border-b border-slate-100 pb-2 flex-shrink-0">
+                <div key={dayIndex} className="day-column h-full flex flex-col min-h-0">
+                  <div className="text-xs font-semibold text-slate-600 mb-1 text-center border-b border-slate-100 pb-1 flex-shrink-0">
                     {day.day}
                   </div>
-                  <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-auto">
+                  <div className="flex flex-col gap-1 flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
                   {day.menus.map((menu) => {
                     const Icon = menu.icon;
                     const isSelected = selected?.id === menu.id;
@@ -514,20 +514,20 @@ function App() {
                           <Icon className="w-5 h-5 flex-shrink-0 opacity-80" style={{ color: theme.shimmer }} />
                         )}
                         <div className="min-w-0 flex-1 overflow-hidden">
-                          <div className="font-medium text-slate-800 text-sm">{menu.name}</div>
-                          <div className="text-slate-500 text-sm leading-snug break-words line-clamp-3">{menu.dish}</div>
+                          <div className="font-medium text-slate-800 text-xs">{menu.name}</div>
+                          <div className="text-slate-500 text-xs leading-snug break-words line-clamp-2">{menu.dish}</div>
                         </div>
                       </button>
                     );
                   })}
                   </div>
-                  <div className="mt-2 pt-2 border-t border-slate-100 flex-shrink-0">
+                  <div className="mt-1 pt-1 border-t border-slate-100 flex-shrink-0">
                     <input
                       type="text"
                       placeholder="Detalle"
                       value={details[dayIndex] || ''}
                       onChange={e => setDetails(d => ({ ...d, [dayIndex]: e.target.value }))}
-                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>

@@ -45,14 +45,14 @@
   }
   
   .day-column {
-    @apply rounded-2xl border border-slate-200/90 p-4 flex flex-col min-w-0;
+    @apply rounded-xl border border-slate-200/90 p-2 flex flex-col min-w-0;
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(8px);
     box-shadow: var(--shadow-card);
   }
   
   .menu-option {
-    @apply rounded-xl border-2 border-transparent p-3.5 text-left cursor-pointer transition-all duration-200;
+    @apply rounded-lg border-2 border-transparent p-2 text-left cursor-pointer transition-all duration-200;
   }
   
   .animate-fade-in-up {

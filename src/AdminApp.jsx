@@ -65,6 +65,7 @@ function AdminApp() {
   const [lastDebug, setLastDebug] = useState(null);
   const [connectionOk, setConnectionOk] = useState(null);
   const [activeView, setActiveView] = useState('dashboard');
+  const [manualEmpresaUsers, setManualEmpresaUsers] = useState([]);
 
   const menuWeek = getMenuWeek();
   const activeWeekKey = weekKeyOverride.trim() || menuWeek.weekKey;
@@ -323,33 +324,53 @@ function AdminApp() {
 
   const handleCycleOpen = async () => {
     setActionLoading('cycle');
+    setError('');
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'admin_cycle_open', adminSecret, weekKey: activeWeekKey }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (data.ok) { setCycleOpen(true); }
-      else setError(data.error || 'Error');
-    } catch (e) { setError(e.message); }
-    finally { setActionLoading(null); }
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch { data = { ok: false, error: 'Respuesta inválida del servidor' }; }
+      if (data.ok) {
+        setCycleOpen(true);
+        setError('');
+      } else {
+        setError(data.error || 'Error al abrir');
+      }
+    } catch (e) {
+      setError(e?.message || 'Error de conexión. Probá en ventana de incógnito si tenés extensiones (adblock, etc.).');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleCycleClose = async () => {
     if (!confirm('¿Cerrar el ciclo? Los usuarios no podrán modificar sus menús.')) return;
     setActionLoading('cycle');
+    setError('');
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'admin_cycle_close', adminSecret, weekKey: activeWeekKey }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (data.ok) { setCycleOpen(false); }
-      else setError(data.error || 'Error');
-    } catch (e) { setError(e.message); }
-    finally { setActionLoading(null); }
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch { data = { ok: false, error: 'Respuesta inválida del servidor' }; }
+      if (data.ok) {
+        setCycleOpen(false);
+        setError('');
+      } else {
+        setError(data.error || 'Error al cerrar');
+      }
+    } catch (e) {
+      setError(e?.message || 'Error de conexión. Probá en ventana de incógnito si tenés extensiones.');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleSendReminder = async () => {
@@ -375,14 +396,34 @@ function AdminApp() {
     }
   };
 
-  const filteredUsers = users.filter(u =>
+  const dedupeKey = (u) => ((u.email || '').toLowerCase() || (u.token || '')) + '|' + (u.semana || '');
+  const usersDeduped = (() => {
+    const seen = {};
+    return [...users].reverse().filter(u => {
+      const k = dedupeKey(u);
+      if (seen[k]) return false;
+      seen[k] = true;
+      return true;
+    }).reverse();
+  })();
+  const filteredUsers = usersDeduped.filter(u =>
     !search || u.nombre?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
   );
 
   const weekForDashboard = activeWeekKey || menuWeek.weekKey;
-  const usersThisWeek = users.filter(u => (u.semana || '') === weekForDashboard);
+  const usersThisWeekRaw = users.filter(u => (u.semana || '') === weekForDashboard);
+  const usersThisWeek = (() => {
+    const seen = {};
+    return [...usersThisWeekRaw].reverse().filter(u => {
+      const k = dedupeKey(u);
+      if (seen[k]) return false;
+      seen[k] = true;
+      return true;
+    }).reverse();
+  })();
   const usersWhoOrdered = usersThisWeek.map(u => (u.email || '').toLowerCase()).filter(Boolean);
-  const usersWhoNotOrdered = empresaUsers.filter(e => {
+  const empresaUsersEffective = (empresaUsers && empresaUsers.length > 0) ? empresaUsers : manualEmpresaUsers;
+  const usersWhoNotOrdered = empresaUsersEffective.filter(e => {
     const em = (e.email || '').toLowerCase();
     return em && !usersWhoOrdered.includes(em);
   });
@@ -570,8 +611,10 @@ function AdminApp() {
               handleUpdate={handleUpdate}
               actionLoading={actionLoading}
               lastDebug={lastDebug}
-              empresaUsers={empresaUsers}
+              empresaUsers={empresaUsersEffective}
               usersThisWeek={usersThisWeek}
+              onLoadManualUsers={setManualEmpresaUsers}
+              empresaUsersFromApi={empresaUsers}
             />
           )}
           {activeView === 'pendientes' && (
@@ -579,7 +622,9 @@ function AdminApp() {
               usersWhoNotOrdered={usersWhoNotOrdered}
               handleSendReminder={handleSendReminder}
               actionLoading={actionLoading}
-              empresaUsers={empresaUsers}
+              empresaUsers={empresaUsersEffective}
+              onLoadManualUsers={setManualEmpresaUsers}
+              empresaUsersFromApi={empresaUsers}
             />
           )}
         </div>
@@ -588,8 +633,24 @@ function AdminApp() {
   );
 }
 
-function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setShowAddForm, addForm, setAddForm, weeklyMenu, editingUser, setEditingUser, handleAdd, handleCancel, handleUpdate, actionLoading, lastDebug, empresaUsers, usersThisWeek }) {
+function parsePastedUsers(text) {
+  if (!text || !text.trim()) return [];
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const parts = lines[i].split(/[\t,;]/).map(p => p.trim());
+    const email = (parts[0] || '').trim();
+    if (!email || email.toLowerCase() === 'email' || email.toLowerCase() === 'correo') continue;
+    if (!email.includes('@')) continue;
+    out.push({ email, nombre: (parts[1] || '').trim() || email, token: (parts[2] || '').trim(), turno: (parts[3] === '2' || parts[3] === 2) ? '2' : '1' });
+  }
+  return out;
+}
+
+function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setShowAddForm, addForm, setAddForm, weeklyMenu, editingUser, setEditingUser, handleAdd, handleCancel, handleUpdate, actionLoading, lastDebug, empresaUsers, usersThisWeek, onLoadManualUsers, empresaUsersFromApi }) {
   const [selectedUserLookup, setSelectedUserLookup] = useState('');
+  const [showPasteModal, setShowPasteModal] = useState(false);
+  const [pasteText, setPasteText] = useState('');
   const allUsersForDropdown = empresaUsers && empresaUsers.length > 0 ? empresaUsers : usersThisWeek.map(u => ({ email: u.email, nombre: u.nombre }));
   const getSelectedFromDropdown = () => {
     if (!selectedUserLookup) return null;
@@ -608,6 +669,25 @@ function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setS
 
   return (
     <div className="max-w-4xl">
+      {empresaUsersFromApi && empresaUsersFromApi.length === 0 && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3">
+          <span className="text-amber-800 text-sm">La lista de usuarios no se cargó desde el Sheet. Cargá la hoja <strong>usuarios_completos</strong> o pegá la lista manualmente.</span>
+          <button onClick={() => setShowPasteModal(true)} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700">Pegar lista</button>
+        </div>
+      )}
+      {showPasteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setShowPasteModal(false)}>
+          <div className="bg-white rounded-xl p-6 max-w-lg w-full shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="font-semibold text-slate-800 mb-2">Pegar lista de usuarios</h3>
+            <p className="text-sm text-slate-500 mb-3">Formato: email, nombre, token, turno (separados por tab o coma). La primera fila puede ser el encabezado.</p>
+            <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} placeholder="email&#10;nombre&#10;token&#10;turno" className="w-full h-40 px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono" />
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => { const parsed = parsePastedUsers(pasteText); if (parsed.length) { onLoadManualUsers(parsed); setShowPasteModal(false); setPasteText(''); } else alert('No se detectaron usuarios. Revisá el formato.'); }} className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white">Cargar</button>
+              <button onClick={() => { setShowPasteModal(false); setPasteText(''); }} className="px-4 py-2 border border-slate-200 rounded-lg text-sm">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2 mb-4">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -809,11 +889,12 @@ function DashboardView({ menuChartData, confirmChartData, handleSendOpening, han
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPie>
-                  <Pie data={menuChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} innerRadius={50} paddingAngle={3} label={({ name, value }) => `${name}: ${value}`}>
+                  <Pie data={menuChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} innerRadius={45} paddingAngle={2} label={false}>
                     {menuChartData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="white" strokeWidth={3} />
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="white" strokeWidth={2} />
                     ))}
                   </Pie>
+                  <Legend wrapperStyle={{ fontSize: 11 }} formatter={(v, e) => `${v}: ${e.payload?.value ?? ''}`} />
                   <Tooltip formatter={(v) => [v, '']} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', padding: '12px 16px', fontSize: 14 }} />
                 </RechartsPie>
               </ResponsiveContainer>
@@ -830,11 +911,12 @@ function DashboardView({ menuChartData, confirmChartData, handleSendOpening, han
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <RechartsPie>
-                  <Pie data={confirmChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} innerRadius={50} paddingAngle={3} label={({ name, value }) => `${name}: ${value}`}>
+                  <Pie data={confirmChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} innerRadius={45} paddingAngle={2} label={false}>
                     {confirmChartData.map((e, i) => (
-                      <Cell key={i} fill={e.color} stroke="white" strokeWidth={3} />
+                      <Cell key={i} fill={e.color} stroke="white" strokeWidth={2} />
                     ))}
                   </Pie>
+                  <Legend wrapperStyle={{ fontSize: 11 }} formatter={(v, e) => `${v}: ${e.payload?.value ?? ''}`} />
                   <Tooltip formatter={(v) => [v, '']} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', padding: '12px 16px', fontSize: 14 }} />
                 </RechartsPie>
               </ResponsiveContainer>
@@ -938,9 +1020,14 @@ function EmpresaView({ sommierUsers, btimeUsers }) {
   );
 }
 
-function PendientesView({ usersWhoNotOrdered, handleSendReminder, actionLoading, empresaUsers }) {
+function PendientesView({ usersWhoNotOrdered, handleSendReminder, actionLoading, empresaUsers, onLoadManualUsers, empresaUsersFromApi }) {
   return (
     <div className="max-w-4xl">
+      {empresaUsersFromApi && empresaUsersFromApi.length === 0 && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3">
+          <span className="text-amber-800 text-sm">La lista no se cargó desde el Sheet. Cargá <strong>usuarios_completos</strong> o usá "Pegar lista" en Listado pedidos.</span>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
         <h2 className="text-lg font-semibold text-slate-800">Quién no pidió</h2>
         <button

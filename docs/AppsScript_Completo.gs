@@ -8,25 +8,51 @@ const HOJA_RESPUESTAS = 'Respuestas';
 const HOJA_CONFIG = 'Config';
 const COCINA_EMAIL = 'juan.billiot@sommiercenter.com'; // Email de la gente de viandas/cocina (confirmar)
 const ADMIN_SECRET = 'Admin.2026'; // Contraseña admin
+// Si la lista de usuarios está en OTRO spreadsheet: pegá acá el ID (ej: 1l9E5kuJVmUrei6PLUnBdwpGoGvTDSRIH0k0GapdfZyk). Vacío = mismo spreadsheet.
+const USUARIOS_SPREADSHEET_ID = '';
 
 function generateToken_() {
   return Utilities.getUuid();
 }
 
-// Obtiene la hoja de usuarios: usuarios_completos, o hoja con "email" en A1, o la primera con datos
+// Obtiene la hoja de usuarios. Orden: 1) Config "HojaUsuarios", 2) usuarios_completos, 3) hoja con "email" en A1, 4) primera con datos (excl. Respuestas/Config)
 function obtenerHojaUsuarios() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SHEET_NAME);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (typeof USUARIOS_SPREADSHEET_ID === 'string' && USUARIOS_SPREADSHEET_ID.trim()) {
+    try { ss = SpreadsheetApp.openById(USUARIOS_SPREADSHEET_ID.trim()); } catch (e) {}
+  }
+  const ssConst = ss;
+  try {
+    var cfg = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_CONFIG);
+    if (cfg && cfg.getLastRow() >= 1) {
+      var cfgData = cfg.getRange(1, 1, cfg.getLastRow(), 2).getValues();
+      for (var c = 0; c < cfgData.length; c++) {
+        if ((cfgData[c][0] || '').toString().trim().toLowerCase() === 'hojausuarios') {
+          var sheetName = (cfgData[c][1] || '').toString().trim();
+          if (sheetName) {
+            var s = ssConst.getSheetByName(sheetName);
+            if (s) return s;
+          }
+          break;
+        }
+      }
+    }
+  } catch (e) {}
+  var sheet = ssConst.getSheetByName(SHEET_NAME);
   if (sheet) return sheet;
-  const sheets = ss.getSheets();
+  var sheets = ssConst.getSheets();
   for (var i = 0; i < sheets.length; i++) {
+    var name = (sheets[i].getName() || '').toString();
+    if (name === HOJA_RESPUESTAS || name === HOJA_CONFIG) continue;
     var a1 = (sheets[i].getRange(1, 1).getValue() || '').toString().toLowerCase().trim();
     if (a1 === 'email' || a1 === 'correo' || a1 === 'e-mail') return sheets[i];
   }
   for (var j = 0; j < sheets.length; j++) {
+    var n = (sheets[j].getName() || '').toString();
+    if (n === HOJA_RESPUESTAS || n === HOJA_CONFIG) continue;
     if (sheets[j].getLastRow() >= 2) return sheets[j];
   }
-  return sheets[0];
+  return sheets[0] || null;
 }
 
 // Genera tokens para todos los usuarios que no tengan uno en la columna "token"

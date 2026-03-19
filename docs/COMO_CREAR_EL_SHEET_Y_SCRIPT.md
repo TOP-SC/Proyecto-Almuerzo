@@ -39,7 +39,9 @@ El Apps Script va **dentro** de ese Sheet, no es un archivo aparte.
 3. Borrá todo el código que aparece por defecto.
 4. Copiá todo el contenido de `docs/AppsScript_Completo.gs` y pegálo ahí.
 5. **Guardar** (Ctrl+S).
-6. Si tu hoja de usuarios no se llama `usuarios_completos`, asegurate de tener **"email"** en la celda A1 (el script la detecta automáticamente).
+6. Si tu hoja de usuarios no se llama `usuarios_completos`, asegurate de tener **"email"** en la celda A1 (el script la detecta automáticamente).  
+   **Alternativa:** En la hoja Config, agregá una fila: A="HojaUsuarios", B=nombre de tu hoja.  
+   **Lista en otro archivo:** En el script, configurá `USUARIOS_SPREADSHEET_ID` con el ID del spreadsheet que tiene la lista.
 
 ### 4. Desplegar como Web App
 
