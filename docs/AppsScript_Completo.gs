@@ -8,8 +8,10 @@ const HOJA_RESPUESTAS = 'Respuestas';
 const HOJA_CONFIG = 'Config';
 const COCINA_EMAIL = 'juan.billiot@sommiercenter.com'; // Email de la gente de viandas/cocina (confirmar)
 const ADMIN_SECRET = 'Admin.2026'; // Contraseña admin
-// Si la lista de usuarios está en OTRO spreadsheet: pegá acá el ID (ej: 1l9E5kuJVmUrei6PLUnBdwpGoGvTDSRIH0k0GapdfZyk). Vacío = mismo spreadsheet.
-const USUARIOS_SPREADSHEET_ID = '';
+// Si la lista de usuarios está en OTRO spreadsheet: pegá acá el ID. Vacío = mismo spreadsheet.
+const USUARIOS_SPREADSHEET_ID = '1l9E5kuJVmUrei6PLUnBdwpGoGvTDSRIH0k0GapdfZyk';
+// GID de la hoja de usuarios (número en la URL después de #gid=). 0 = detectar automático.
+const USUARIOS_SHEET_GID = 877468020;
 
 function generateToken_() {
   return Utilities.getUuid();
@@ -38,6 +40,12 @@ function obtenerHojaUsuarios() {
       }
     }
   } catch (e) {}
+  if (USUARIOS_SHEET_GID && USUARIOS_SHEET_GID > 0) {
+    var sheets = ssConst.getSheets();
+    for (var g = 0; g < sheets.length; g++) {
+      if (sheets[g].getSheetId() == USUARIOS_SHEET_GID) return sheets[g];
+    }
+  }
   var sheet = ssConst.getSheetByName(SHEET_NAME);
   if (sheet) return sheet;
   var sheets = ssConst.getSheets();
@@ -433,12 +441,12 @@ function handleAdminAction(data) {
     if (action === 'admin_send_reminder') {
       return adminSendReminder(data.weekKey);
     }
-    if (action === 'admin_cycle_open') {
-      setCycleState(data.weekKey, true);
+    if (action === 'admin_cycle_open' || String(action).indexOf('admin_cycle_open') === 0) {
+      setCycleState(data.weekKey || '', true);
       return ContentService.createTextOutput(JSON.stringify({ ok: true, abierto: true })).setMimeType(ContentService.MimeType.JSON);
     }
-    if (action === 'admin_cycle_close') {
-      setCycleState(data.weekKey, false);
+    if (action === 'admin_cycle_close' || String(action).indexOf('admin_cycle_close') === 0) {
+      setCycleState(data.weekKey || '', false);
       return ContentService.createTextOutput(JSON.stringify({ ok: true, abierto: false })).setMimeType(ContentService.MimeType.JSON);
     }
     if (action === 'admin_cycle_status') {
