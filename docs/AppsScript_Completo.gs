@@ -47,6 +47,19 @@ function obtenerHojaUsuarios() {
     var a1 = (sheets[i].getRange(1, 1).getValue() || '').toString().toLowerCase().trim();
     if (a1 === 'email' || a1 === 'correo' || a1 === 'e-mail') return sheets[i];
   }
+  for (var k = 0; k < sheets.length; k++) {
+    var sk = sheets[k];
+    var nk = (sk.getName() || '').toString();
+    if (nk === HOJA_RESPUESTAS || nk === HOJA_CONFIG) continue;
+    var lr = sk.getLastRow();
+    if (lr >= 2) {
+      var colA = sk.getRange(2, 1, Math.min(lr, 100), 1).getValues();
+      for (var r = 0; r < colA.length; r++) {
+        var val = (colA[r][0] || '').toString();
+        if (val.indexOf('@') !== -1) return sk;
+      }
+    }
+  }
   for (var j = 0; j < sheets.length; j++) {
     var n = (sheets[j].getName() || '').toString();
     if (n === HOJA_RESPUESTAS || n === HOJA_CONFIG) continue;
@@ -392,7 +405,7 @@ function handleAdminAction(data) {
       .setMimeType(ContentService.MimeType.JSON);
   }
   try {
-    var action = data.action;
+    var action = (data.action || '').toString().trim();
     if (action === 'admin_ping') {
       return ContentService.createTextOutput(JSON.stringify({ ok: true, message: 'pong' })).setMimeType(ContentService.MimeType.JSON);
     }
@@ -556,6 +569,7 @@ function adminAdd(nombre, turno, weekKey, selections, weeklyMenu) {
 function adminListEmpresa() {
   try {
     var sheet = obtenerHojaUsuarios();
+    if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: true, users: [] })).setMimeType(ContentService.MimeType.JSON);
     var lastRow = sheet.getLastRow();
     if (lastRow < 2) {
       return ContentService.createTextOutput(JSON.stringify({ ok: true, users: [] })).setMimeType(ContentService.MimeType.JSON);
