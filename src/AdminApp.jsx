@@ -442,13 +442,18 @@ function AdminApp() {
   });
 
   const menuCounts = {};
+  const menuCountsByDay = { Lunes: {}, Martes: {}, Miércoles: {}, Jueves: {}, Viernes: {} };
+  const dayKeys = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
+  const dayLabels = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
   usersThisWeek.forEach(u => {
-    ['lunes','martes','miercoles','jueves','viernes'].forEach(d => {
+    dayKeys.forEach((d, i) => {
       const val = u[d] || '';
       const m = val.match(/MENU\s*(\d+)/i) || val.match(/REMOTO/i) || val.match(/SIN VIANDA/i);
       const key = m ? (m[1] ? `MENU ${m[1]}` : (val.toUpperCase().includes('REMOTO') ? 'REMOTO' : 'SIN VIANDA')) : null;
       if (key) {
         menuCounts[key] = (menuCounts[key] || 0) + 1;
+        const label = dayLabels[i];
+        menuCountsByDay[label][key] = (menuCountsByDay[label][key] || 0) + 1;
       }
     });
   });
@@ -598,7 +603,7 @@ function AdminApp() {
             />
           )}
           {activeView === 'menus' && (
-            <MenusView menuCounts={menuCounts} />
+            <MenusView menuCounts={menuCounts} menuCountsByDay={menuCountsByDay} />
           )}
           {activeView === 'empresa' && (
             <EmpresaView
@@ -959,35 +964,84 @@ function DashboardView({ menuChartData, confirmChartData, handleSendOpening, han
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all bg-gradient-to-r from-green-500 to-emerald-600"
         >
           {actionLoading === 'pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-          PDF + Abrir Gmail
+          Menú a proveedor
         </button>
       </div>
     </div>
   );
 }
 
-function MenusView({ menuCounts }) {
+function MenusView({ menuCounts, menuCountsByDay }) {
+  const [tab, setTab] = useState('semanal');
   const total = Object.values(menuCounts).reduce((a, b) => a + b, 0);
   const entries = Object.entries(menuCounts).sort((a, b) => b[1] - a[1]);
+  const dayLabels = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+
+  const renderCard = (name, count) => {
+    const t = MENU_CARD_COLORS[name] || { bg: 'from-slate-400 to-slate-500', shadow: 'shadow-slate-400/30', text: 'text-white' };
+    return (
+      <div
+        key={name}
+        className={`rounded-2xl bg-gradient-to-br ${t.bg} p-5 shadow-lg ${t.shadow} flex flex-col items-center justify-center min-h-[120px]`}
+      >
+        <span className="text-3xl font-bold text-white drop-shadow-sm">{count}</span>
+        <span className="text-sm font-medium text-white/90 mt-1 text-center">{name}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="max-w-4xl">
-      <h2 className="text-lg font-semibold text-slate-800 mb-4">Cantidad por menú</h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {entries.map(([name, count]) => {
-          const t = MENU_CARD_COLORS[name] || { bg: 'from-slate-400 to-slate-500', shadow: 'shadow-slate-400/30', text: 'text-white' };
-          return (
-            <div
-              key={name}
-              className={`rounded-2xl bg-gradient-to-br ${t.bg} p-5 shadow-lg ${t.shadow} flex flex-col items-center justify-center min-h-[120px]`}
-            >
-              <span className="text-3xl font-bold text-white drop-shadow-sm">{count}</span>
-              <span className="text-sm font-medium text-white/90 mt-1 text-center">{name}</span>
-            </div>
-          );
-        })}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <h2 className="text-lg font-semibold text-slate-800">Cantidad por menú</h2>
+        <div className="flex rounded-xl overflow-hidden border border-slate-200 bg-slate-50 p-0.5">
+          <button
+            type="button"
+            onClick={() => setTab('semanal')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'semanal' ? 'bg-white shadow text-slate-800' : 'text-slate-600 hover:text-slate-800'}`}
+          >
+            Conteo semanal
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('diario')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'diario' ? 'bg-white shadow text-slate-800' : 'text-slate-600 hover:text-slate-800'}`}
+          >
+            Conteo diario
+          </button>
+        </div>
       </div>
-      {total > 0 && (
-        <p className="mt-4 text-sm text-slate-500">Total: {total} selecciones</p>
+
+      {tab === 'semanal' && (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {entries.map(([name, count]) => renderCard(name, count))}
+          </div>
+          {total > 0 && (
+            <p className="mt-4 text-sm text-slate-500">Total: {total} selecciones</p>
+          )}
+        </>
+      )}
+
+      {tab === 'diario' && (
+        <div className="space-y-6">
+          {dayLabels.map((day) => {
+            const dayCounts = menuCountsByDay?.[day] || {};
+            const dayEntries = Object.entries(dayCounts).sort((a, b) => b[1] - a[1]);
+            const dayTotal = Object.values(dayCounts).reduce((a, b) => a + b, 0);
+            return (
+              <div key={day}>
+                <h3 className="text-sm font-semibold text-slate-600 mb-3">{day} {dayTotal > 0 && `(${dayTotal})`}</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {dayEntries.map(([name, count]) => renderCard(name, count))}
+                </div>
+                {dayEntries.length === 0 && (
+                  <p className="text-slate-400 text-sm py-2">Sin pedidos</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

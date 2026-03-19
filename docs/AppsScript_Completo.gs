@@ -387,16 +387,20 @@ function doPostImpl(e) {
     var weekNumber = data.weekNumber || '';
     var userTurn   = data.userTurn   || '';
     var selections = data.selections || {};
+    var details = data.details || {};
     var weeklyMenu = data.weeklyMenu || [];
 
     guardarRespuestaEnSheet(data);
 
     var summaryLines = weeklyMenu.map(function(day, index) {
       var sel = selections[index];
+      var det = (details[index] || details[index.toString()] || '').toString().trim();
       if (!sel) {
         return day.day + ': SIN SELECCIÓN';
       }
-      return day.day + ': ' + sel.name + ' - ' + sel.dish + ' (' + sel.category + ')';
+      var line = day.day + ': ' + sel.name + ' - ' + sel.dish + ' (' + sel.category + ')';
+      if (det) line += '\n  Detalle: ' + det;
+      return line;
     });
 
     var summaryText = summaryLines.join('\n');
@@ -488,7 +492,7 @@ function handleAdminAction(data) {
       return adminUpdate(data.token, data.weekKey, data.selections, data.nombre, data.details);
     }
     if (action === 'admin_add') {
-      return adminAdd(data.nombre, data.turno, data.weekKey, data.selections, data.weeklyMenu);
+      return adminAdd(data.nombre, data.turno, data.weekKey, data.selections, data.weeklyMenu, data.details);
     }
     if (action === 'admin_list_empresa') {
       return adminListEmpresa();
@@ -572,12 +576,14 @@ function adminCancel(token, weekKey, nombre) {
   if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder al spreadsheet' })).setMimeType(ContentService.MimeType.JSON);
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos' })).setMimeType(ContentService.MimeType.JSON);
-  var datos = sheet.getRange(2, 1, lastRow, 11).getValues();
+  var datos = sheet.getRange(2, 1, lastRow, 12).getValues();
   var wk = normalizarSemana(weekKey);
   for (var r = 0; r < datos.length; r++) {
     if (normalizarSemana(datos[r][0]) === wk && String(datos[r][1]) === String(token)) {
       sheet.getRange(2 + r, 11).setValue('anulado');
-      try { enviarCorreccionCocina('anulado', { nombre: nombre || datos[r][2], turno: datos[r][4], lunes: datos[r][5], martes: datos[r][6], miercoles: datos[r][7], jueves: datos[r][8], viernes: datos[r][9] }, null); } catch (e) { Logger.log('Corrección cocina: ' + e); }
+      var det = {};
+      try { var dStr = (datos[r][11] || '').toString(); if (dStr) det = JSON.parse(dStr); } catch (e) {}
+      try { enviarCorreccionCocina('anulado', { nombre: nombre || datos[r][2], turno: datos[r][4], lunes: datos[r][5], martes: datos[r][6], miercoles: datos[r][7], jueves: datos[r][8], viernes: datos[r][9], details: det }, null); } catch (e) { Logger.log('Corrección cocina: ' + e); }
       return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
     }
   }
@@ -609,7 +615,10 @@ function adminUpdate(token, weekKey, selections, nombre, details) {
       sheet.getRange(2 + r, 6, 2 + r, 10).setValues([nuevos]);
       var detStr = (details && typeof details === 'object') ? JSON.stringify(details) : (row[11] || '');
       sheet.getRange(2 + r, 12).setValue(detStr);
-      try { enviarCorreccionCocina('modificado', { nombre: nombre || row[2], turno: row[4], lunes: nuevos[0], martes: nuevos[1], miercoles: nuevos[2], jueves: nuevos[3], viernes: nuevos[4] }, antes); } catch (e) { Logger.log('Corrección cocina: ' + e); }
+      var det = {};
+      if (details && typeof details === 'object') det = details;
+      else { try { var dStr = (row[11] || '').toString(); if (dStr) det = JSON.parse(dStr); } catch (e) {} }
+      try { enviarCorreccionCocina('modificado', { nombre: nombre || row[2], turno: row[4], lunes: nuevos[0], martes: nuevos[1], miercoles: nuevos[2], jueves: nuevos[3], viernes: nuevos[4], details: det }, antes); } catch (e) { Logger.log('Corrección cocina: ' + e); }
       return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
     }
   }
@@ -620,19 +629,21 @@ function adminUpdate(token, weekKey, selections, nombre, details) {
   }
 }
 
-function adminAdd(nombre, turno, weekKey, selections, weeklyMenu) {
+function adminAdd(nombre, turno, weekKey, selections, weeklyMenu, details) {
   try {
   var sheet = obtenerHojaRespuestas();
   if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder al spreadsheet' })).setMimeType(ContentService.MimeType.JSON);
   var token = 'invitado-' + Utilities.getUuid().toString().slice(0, 8);
-  var row = [weekKey || '', token, nombre || 'Invitado', '', turno || '1', '', '', '', '', '', 'activo'];
+  var row = [weekKey || '', token, nombre || 'Invitado', '', turno || '1', '', '', '', '', '', 'activo', ''];
   for (var i = 0; i < 5; i++) {
     var sel = (selections && selections[i]);
     var s = sel && typeof sel === 'object' ? ((sel.name || '') + ' - ' + (sel.dish || '')) : '';
     row[5 + i] = s;
   }
+  row[11] = (details && typeof details === 'object') ? JSON.stringify(details) : '{}';
   sheet.appendRow(row);
-  try { enviarCorreccionCocina('agregado', { nombre: nombre || 'Invitado', turno: turno || '1', lunes: row[5], martes: row[6], miercoles: row[7], jueves: row[8], viernes: row[9] }, null); } catch (e) { Logger.log('Corrección cocina: ' + e); }
+  var det = (details && typeof details === 'object') ? details : {};
+  try { enviarCorreccionCocina('agregado', { nombre: nombre || 'Invitado', turno: turno || '1', lunes: row[5], martes: row[6], miercoles: row[7], jueves: row[8], viernes: row[9], details: det }, null); } catch (e) { Logger.log('Corrección cocina: ' + e); }
   return ContentService.createTextOutput(JSON.stringify({ ok: true, token: token })).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
     Logger.log('adminAdd: ' + e);
@@ -722,8 +733,18 @@ function adminPdfGmail(weekKey) {
     if (filtrados.length === 0) {
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin respuestas para esta semana' })).setMimeType(ContentService.MimeType.JSON);
     }
+    // Deduplicar: solo último por usuario+semana (igual que adminList)
+    filtrados.reverse();
+    var seenPdf = {};
+    filtrados = filtrados.filter(function(row) {
+      var key = ((row[3] || '').toString().toLowerCase() || (row[1] || '')) + '|' + normalizarSemana(row[0]);
+      if (seenPdf[key]) return false;
+      seenPdf[key] = true;
+      return true;
+    });
     var ssNew = SpreadsheetApp.create('Resumen Menus ' + (wk || 'semana'));
     var hoja = ssNew.getSheets()[0];
+    hoja.setName('Resumen');
     var filas = [['Usuario', 'Turno', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Detalle']];
     filtrados.forEach(function(row) {
       var det = {};
@@ -743,6 +764,8 @@ function adminPdfGmail(weekKey) {
     });
     hoja.getRange(1, 1, filas.length, 8).setValues(filas);
     hoja.getRange(1, 1, 1, 8).setFontWeight('bold');
+    hoja.autoResizeColumns(1, 8);
+    SpreadsheetApp.flush();
     var pdfBlob = ssNew.getAs('application/pdf');
     var folder = DriveApp.getFolderById(CARPETA_DRIVE_COCINA_ID);
     var pdfFile = folder.createFile(pdfBlob.setName('Menus ' + (wk || 'semana') + '.pdf'));
@@ -813,11 +836,13 @@ function adminSendReminder(weekKey, emailsFiltro) {
 
 function enviarCorreccionCocina(tipo, datos, antes) {
   var lineas = ['CORRECCIÓN - Menú semanal', '', 'Tipo: ' + tipo.toUpperCase(), 'Nombre: ' + datos.nombre, 'Turno: ' + datos.turno, '', 'Menú actual:'];
-  lineas.push('Lunes: ' + (datos.lunes || '-'));
-  lineas.push('Martes: ' + (datos.martes || '-'));
-  lineas.push('Miércoles: ' + (datos.miercoles || '-'));
-  lineas.push('Jueves: ' + (datos.jueves || '-'));
-  lineas.push('Viernes: ' + (datos.viernes || '-'));
+  var dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
+  for (var i = 0; i < dias.length; i++) {
+    var d = dias[i];
+    var menu = (datos[d] || '-').toString();
+    var det = (datos.details && (datos.details[i] || datos.details[i.toString()])) ? String(datos.details[i] || datos.details[i.toString()]).trim() : '';
+    lineas.push((d.charAt(0).toUpperCase() + d.slice(1)) + ': ' + menu + (det ? ' (detalle: ' + det + ')' : ''));
+  }
   if (antes && tipo === 'modificado') {
     lineas.push('', 'Antes:');
     lineas.push('Lunes: ' + (antes.lunes || '-'));
@@ -833,11 +858,14 @@ function enviarCorreccionCocina(tipo, datos, antes) {
   });
 }
 
-// Extrae solo el número de menú de "MENU 1 - Milanesa" -> "Menu 1"
+// Extrae solo el número de menú de "MENU 1 - Milanesa" -> "Menu 1", REMOTO -> "REMOTO", etc.
 function extraerNumeroMenu(celda) {
   if (!celda || typeof celda !== 'string') return '';
   var m = celda.match(/MENU\s*(\d+)/i);
-  return m ? 'Menu ' + m[1] : celda;
+  if (m) return 'Menu ' + m[1];
+  if (/REMOTO/i.test(celda)) return 'REMOTO';
+  if (/SIN VIANDA/i.test(celda)) return 'SIN VIANDA';
+  return String(celda).slice(0, 30);
 }
 
 // --- Informe para cocina: crear archivo en Drive + email (ejecutar lunes 9:00 Argentina) ---
