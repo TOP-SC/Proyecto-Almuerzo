@@ -774,7 +774,7 @@ function adminPdfGmail(weekKey) {
       ]);
     });
     // Resumen de cantidades al final
-    filas.push([]);
+    filas.push(['', '', '', '', '', '', '', '']);
     filas.push(['RESUMEN - Cantidad por menú', '', '', '', '', '', '', '']);
     var menuOrden = ['Menu 1', 'Menu 2', 'Menu 3', 'Menu 4', 'Menu 5', 'REMOTO', 'SIN VIANDA'];
     var otros = Object.keys(contadorMenus).filter(function(k) { return menuOrden.indexOf(k) === -1; });
@@ -783,7 +783,10 @@ function adminPdfGmail(weekKey) {
     });
     hoja.getRange(1, 1, filas.length, 8).setValues(filas);
     hoja.getRange(1, 1, 1, 8).setFontWeight('bold');
-    var resumenRow = filas.findIndex(function(r) { return (r[0] || '').toString().indexOf('RESUMEN') !== -1; });
+    var resumenRow = -1;
+    for (var ri = 0; ri < filas.length; ri++) {
+      if ((filas[ri][0] || '').toString().indexOf('RESUMEN') !== -1) { resumenRow = ri; break; }
+    }
     if (resumenRow >= 0) hoja.getRange(resumenRow + 1, 1, resumenRow + 1, 8).setFontWeight('bold');
     hoja.autoResizeColumns(1, 8);
     SpreadsheetApp.flush();

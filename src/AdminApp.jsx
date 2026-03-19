@@ -906,8 +906,8 @@ function DashboardView({ menuChartData, confirmChartData, handleSendOpening, han
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6" style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
           <h3 className="font-semibold text-slate-700 mb-4 text-sm">Menús elegidos</h3>
           {menuChartData.length > 0 ? (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-64 min-h-[200px]" style={{ minWidth: 0 }}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                 <RechartsPie>
                   <Pie data={menuChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} innerRadius={45} paddingAngle={2} label={false}>
                     {menuChartData.map((_, i) => (
@@ -928,8 +928,8 @@ function DashboardView({ menuChartData, confirmChartData, handleSendOpening, han
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6" style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
           <h3 className="font-semibold text-slate-700 mb-4 text-sm">Confirmó / No confirmó</h3>
           {confirmChartData.some(d => d.value > 0) ? (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-64 min-h-[200px]" style={{ minWidth: 0 }}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                 <RechartsPie>
                   <Pie data={confirmChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} innerRadius={45} paddingAngle={2} label={false}>
                     {confirmChartData.map((e, i) => (
@@ -973,8 +973,17 @@ function DashboardView({ menuChartData, confirmChartData, handleSendOpening, han
 
 function MenusView({ menuCounts, menuCountsByDay }) {
   const [tab, setTab] = useState('semanal');
+  const MENU_ORDER = ['MENU 1', 'MENU 2', 'MENU 3', 'MENU 4', 'MENU 5', 'REMOTO', 'SIN VIANDA'];
+  const dayLabels = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
   const total = Object.values(menuCounts).reduce((a, b) => a + b, 0);
-  const entries = Object.entries(menuCounts).sort((a, b) => b[1] - a[1]);
+  const entries = Object.entries(menuCounts).sort((a, b) => {
+    const iA = MENU_ORDER.indexOf(a[0]);
+    const iB = MENU_ORDER.indexOf(b[0]);
+    if (iA >= 0 && iB >= 0) return iA - iB;
+    if (iA >= 0) return -1;
+    if (iB >= 0) return 1;
+    return (a[0] || '').localeCompare(b[0] || '');
+  });
   const dayLabels = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
   const renderCard = (name, count, compact) => {
@@ -1027,7 +1036,14 @@ function MenusView({ menuCounts, menuCountsByDay }) {
         <div className="space-y-4">
           {dayLabels.map((day) => {
             const dayCounts = menuCountsByDay?.[day] || {};
-            const dayEntries = Object.entries(dayCounts).sort((a, b) => b[1] - a[1]);
+            const dayEntries = Object.entries(dayCounts).sort((a, b) => {
+              const iA = MENU_ORDER.indexOf(a[0]);
+              const iB = MENU_ORDER.indexOf(b[0]);
+              if (iA >= 0 && iB >= 0) return iA - iB;
+              if (iA >= 0) return -1;
+              if (iB >= 0) return 1;
+              return (a[0] || '').localeCompare(b[0] || '');
+            });
             const dayTotal = Object.values(dayCounts).reduce((a, b) => a + b, 0);
             return (
               <div key={day}>
