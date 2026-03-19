@@ -161,12 +161,12 @@ function crearHtmlMailRecordatorio(nombre, url) {
     '</td></tr></table></td></tr></table></body></html>';
 }
 
-// Mail al proveedor con link al PDF - estilo similar a apertura/recordatorio
+// Mail al proveedor con link al PDF - verde/teal (azul=apertura, naranja=recordatorio)
 function crearHtmlMailProveedor(pdfUrl, weekKey) {
-  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;font-family:\'Segoe UI\',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#e8f0fe 0%,#f1f5f9 100%);">' +
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;font-family:\'Segoe UI\',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#ecfdf5 0%,#d1fae5 100%);">' +
     '<table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 16px;"><tr><td align="center">' +
     '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:420px;background:#ffffff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.08);overflow:hidden;border:1px solid rgba(0,0,0,0.04);">' +
-    '<tr><td style="background:linear-gradient(135deg,#1a73e8 0%,#0d47a1 100%);padding:28px 24px;text-align:center;">' +
+    '<tr><td style="background:linear-gradient(135deg,#059669 0%,#047857 100%);padding:28px 24px;text-align:center;">' +
     '<h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:600;letter-spacing:-0.5px;">Menú Semanal</h1>' +
     '<p style="margin:8px 0 0;color:rgba(255,255,255,0.95);font-size:15px;">Resumen para proveedor</p>' +
     '</td></tr>' +
@@ -174,12 +174,12 @@ function crearHtmlMailProveedor(pdfUrl, weekKey) {
     '<p style="margin:0 0 16px;color:#1e293b;font-size:16px;line-height:1.5;">Hacé clic en el botón para ver el resumen de menús elegidos.</p>' +
     '<p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">Semana: ' + (weekKey || '') + '</p>' +
     '<p style="margin:0 0 20px;text-align:center;">' +
-    '<a href="' + pdfUrl + '" style="display:inline-block;padding:14px 32px;background:#1a73e8;color:#ffffff!important;text-decoration:none;font-size:16px;font-weight:600;border-radius:10px;box-shadow:0 4px 14px rgba(26,115,232,0.4);">Ver PDF</a>' +
+    '<a href="' + pdfUrl + '" style="display:inline-block;padding:14px 32px;background:#059669;color:#ffffff!important;text-decoration:none;font-size:16px;font-weight:600;border-radius:10px;box-shadow:0 4px 14px rgba(5,150,105,0.4);">Ver PDF</a>' +
     '</p>' +
-    '<p style="margin:0;color:#64748b;font-size:13px;text-align:center;">O copiá este enlace: <a href="' + pdfUrl + '" style="color:#1a73e8;word-break:break-all;">' + pdfUrl + '</a></p>' +
+    '<p style="margin:0;color:#64748b;font-size:13px;text-align:center;">O copiá este enlace: <a href="' + pdfUrl + '" style="color:#059669;word-break:break-all;">' + pdfUrl + '</a></p>' +
     '</td></tr>' +
-    '<tr><td style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;">' +
-    '<p style="margin:0;color:#94a3b8;font-size:12px;">RRHH · Organización de Almuerzos</p>' +
+    '<tr><td style="padding:16px 24px;background:#ecfdf5;border-top:1px solid #a7f3d0;">' +
+    '<p style="margin:0;color:#047857;font-size:12px;">RRHH · Organización de Almuerzos</p>' +
     '</td></tr></table></td></tr></table></body></html>';
 }
 
