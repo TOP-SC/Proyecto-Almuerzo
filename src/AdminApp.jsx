@@ -465,7 +465,7 @@ function AdminApp() {
   ];
 
   const sommierCount = usersThisWeek.filter(u => (u.email || '').toLowerCase().includes('@sommiercenter')).length;
-  const btimeCount = usersThisWeek.filter(u => (u.email || '').toLowerCase().includes('@btime')).length;
+  const btimeCount = usersThisWeek.filter(u => (u.email || '').toLowerCase().includes('@bedtime')).length;
 
   if (!isAuth) {
     return (
@@ -608,7 +608,7 @@ function AdminApp() {
           {activeView === 'empresa' && (
             <EmpresaView
               sommierUsers={usersThisWeek.filter(u => (u.email || '').toLowerCase().includes('@sommiercenter'))}
-              btimeUsers={usersThisWeek.filter(u => (u.email || '').toLowerCase().includes('@btime'))}
+              btimeUsers={usersThisWeek.filter(u => (u.email || '').toLowerCase().includes('@bedtime'))}
             />
           )}
           {activeView === 'listado' && (
@@ -1088,7 +1088,7 @@ function EmpresaView({ sommierUsers, btimeUsers }) {
       <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-4">
         <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-amber-500" />
-          @btime ({btimeUsers.length})
+          @bedtime ({btimeUsers.length})
         </h3>
         <div className="max-h-[60vh] overflow-y-auto space-y-1.5 text-sm">
           {btimeUsers.map((u, i) => (
