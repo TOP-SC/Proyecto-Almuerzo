@@ -191,9 +191,9 @@ function App() {
       })
         .then(r => r.json())
         .then(d => { if (d && d.ok !== undefined) setCycleOpen(d.abierto); })
-        .catch(() => setCycleOpen(true));
+        .catch(() => setCycleOpen(false)); // En error, asumir cerrado (más seguro)
     } else {
-      setCycleOpen(true);
+      setCycleOpen(true); // Sin token = pantalla bienvenida, no bloqueamos
     }
   }, [userToken, weekKey]);
 

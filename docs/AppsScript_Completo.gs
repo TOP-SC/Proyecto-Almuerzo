@@ -478,7 +478,7 @@ function handleAdminAction(data) {
       return adminPdfGmail(data.weekKey);
     }
     if (action === 'admin_send_reminder') {
-      return adminSendReminder(data.weekKey);
+      return adminSendReminder(data.weekKey, data.emails);
     }
     if (action === 'admin_cycle_open' || String(action).indexOf('admin_cycle_open') === 0) {
       setCycleState(data.weekKey || '', true);
@@ -517,7 +517,7 @@ function adminList(weekKey) {
     if (!row[1] && !row[2]) return false;
     return (row[10] || '').toString().toLowerCase() !== 'anulado';
   });
-  var users = filtrados.map(function(row) {
+  var users = filtrados.map(function(row, idx) {
     var det = {};
     try {
       var dStr = (row[11] || '').toString();
@@ -526,11 +526,12 @@ function adminList(weekKey) {
     return {
       token: row[1], nombre: row[2], email: row[3], turno: row[4],
       lunes: row[5], martes: row[6], miercoles: row[7], jueves: row[8], viernes: row[9],
-      estado: row[10] || 'activo', semana: normalizarSemana(row[0]), details: det
+      estado: row[10] || 'activo', semana: normalizarSemana(row[0]), details: det,
+      _rowIdx: idx
     };
   });
-  // Deduplicar por email+semana (quedarse con el último = más reciente)
-  users = users.reverse();
+  // Deduplicar: solo el ÚLTIMO por usuario+semana (ordenar por índice descendente, quedarse con el primero de cada key)
+  users.sort(function(a, b) { return (b._rowIdx || 0) - (a._rowIdx || 0); });
   var seen = {};
   users = users.filter(function(u) {
     var key = ((u.email || '').toLowerCase() || (u.token || '')) + '|' + (u.semana || '');
@@ -538,7 +539,8 @@ function adminList(weekKey) {
     seen[key] = true;
     return true;
   });
-  users = users.reverse();
+  users.forEach(function(u) { delete u._rowIdx; });
+  users.sort(function(a, b) { return (a.nombre || '').localeCompare(b.nombre || ''); });
   return ContentService.createTextOutput(JSON.stringify({ ok: true, users: users, debug: { totalRows: datos.length, filtered: filtrados.length, weekKey: wk } })).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -735,7 +737,8 @@ function adminPdfGmail(weekKey) {
 }
 
 // Envía recordatorio a quienes no pidieron menú
-function adminSendReminder(weekKey) {
+// emails: array opcional de emails; si se pasa, solo envía a esos; si no, envía a todos los que no pidieron
+function adminSendReminder(weekKey, emailsFiltro) {
   try {
     var sheetResp = obtenerHojaRespuestas();
     var sheetEmp = obtenerHojaUsuarios();
@@ -758,10 +761,16 @@ function adminSendReminder(weekKey) {
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No hay lista de empresa' })).setMimeType(ContentService.MimeType.JSON);
     }
     var dataEmp = sheetEmp.getRange(2, 1, lastEmp, 4).getValues();
+    var setFiltro = null;
+    if (Array.isArray(emailsFiltro) && emailsFiltro.length > 0) {
+      setFiltro = {};
+      emailsFiltro.forEach(function(e) { setFiltro[(e || '').toString().trim().toLowerCase()] = true; });
+    }
     var enviados = 0;
     dataEmp.forEach(function(row) {
       var email = (row[0] || '').toString().trim().toLowerCase();
       if (!email || quienesPidieron[email]) return;
+      if (setFiltro && !setFiltro[email]) return;
       var nombre = (row[1] || '').toString().trim() || 'Colaborador';
       var token = (row[2] || '').toString();
       if (!token) return;

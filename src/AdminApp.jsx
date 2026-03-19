@@ -66,6 +66,7 @@ function AdminApp() {
   const [connectionOk, setConnectionOk] = useState(null);
   const [activeView, setActiveView] = useState('dashboard');
   const [manualEmpresaUsers, setManualEmpresaUsers] = useState([]);
+  const [selectedReminderEmails, setSelectedReminderEmails] = useState([]);
 
   const menuWeek = getMenuWeek();
   const activeWeekKey = weekKeyOverride.trim() || menuWeek.weekKey;
@@ -373,19 +374,26 @@ function AdminApp() {
     }
   };
 
-  const handleSendReminder = async () => {
-    if (!confirm('¿Enviar recordatorio a las personas que no pidieron menú?')) return;
+  const handleSendReminder = async (emailsToSend) => {
+    const count = Array.isArray(emailsToSend) && emailsToSend.length > 0 ? emailsToSend.length : 0;
+    const msg = count > 0
+      ? `¿Enviar recordatorio a ${count} persona(s) seleccionada(s)?`
+      : '¿Enviar recordatorio a todas las personas que no pidieron?';
+    if (!confirm(msg)) return;
     setActionLoading('reminder');
     setError('');
     try {
+      const body = { action: 'admin_send_reminder', adminSecret, weekKey: activeWeekKey };
+      if (count > 0) body.emails = emailsToSend;
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'admin_send_reminder', adminSecret, weekKey: activeWeekKey }),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
       if (data.ok) {
-        alert('Recordatorios enviados.');
+        alert(`Recordatorios enviados: ${data.enviados || 0}`);
+        setSelectedReminderEmails([]);
       } else {
         setError(data.error || 'Error al enviar');
       }
@@ -621,6 +629,8 @@ function AdminApp() {
             <PendientesView
               usersWhoNotOrdered={usersWhoNotOrdered}
               handleSendReminder={handleSendReminder}
+              selectedReminderEmails={selectedReminderEmails}
+              setSelectedReminderEmails={setSelectedReminderEmails}
               actionLoading={actionLoading}
               empresaUsers={empresaUsersEffective}
               onLoadManualUsers={setManualEmpresaUsers}
@@ -1020,7 +1030,27 @@ function EmpresaView({ sommierUsers, btimeUsers }) {
   );
 }
 
-function PendientesView({ usersWhoNotOrdered, handleSendReminder, actionLoading, empresaUsers, onLoadManualUsers, empresaUsersFromApi }) {
+function PendientesView({ usersWhoNotOrdered, handleSendReminder, selectedReminderEmails, setSelectedReminderEmails, actionLoading, empresaUsers, onLoadManualUsers, empresaUsersFromApi }) {
+  const emailsSet = new Set((selectedReminderEmails || []).map(e => (e || '').toLowerCase()));
+  const toggleEmail = (email) => {
+    if (!email) return;
+    const em = email.toLowerCase();
+    setSelectedReminderEmails(prev => {
+      const s = new Set(prev.map(x => x.toLowerCase()));
+      if (s.has(em)) s.delete(em); else s.add(em);
+      return [...s];
+    });
+  };
+  const selectAll = () => {
+    const withEmail = usersWhoNotOrdered.filter(u => u.email).map(u => u.email.toLowerCase());
+    setSelectedReminderEmails([...new Set(withEmail)]);
+  };
+  const selectNone = () => setSelectedReminderEmails([]);
+  const onSend = () => {
+    const toSend = emailsSet.size > 0 ? [...emailsSet] : null;
+    handleSendReminder(toSend);
+  };
+
   return (
     <div className="max-w-4xl">
       {empresaUsersFromApi && empresaUsersFromApi.length === 0 && (
@@ -1030,24 +1060,64 @@ function PendientesView({ usersWhoNotOrdered, handleSendReminder, actionLoading,
       )}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
         <h2 className="text-lg font-semibold text-slate-800">Quién no pidió</h2>
-        <button
-          onClick={handleSendReminder}
-          disabled={actionLoading === 'reminder'}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-white bg-gradient-to-r from-red-500 to-red-600 shadow-lg shadow-red-500/25"
-        >
-          {actionLoading === 'reminder' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          Enviar recordatorio
-        </button>
+        <div className="flex items-center gap-2">
+          {usersWhoNotOrdered.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={selectAll}
+                className="text-sm text-slate-600 hover:text-slate-800 underline"
+              >
+                Seleccionar todos
+              </button>
+              <span className="text-slate-300">|</span>
+              <button
+                type="button"
+                onClick={selectNone}
+                className="text-sm text-slate-600 hover:text-slate-800 underline"
+              >
+                Ninguno
+              </button>
+              <span className="text-slate-400 text-sm">
+                ({emailsSet.size > 0 ? emailsSet.size + ' seleccionados' : 'todos'})
+              </span>
+            </>
+          )}
+          <button
+            onClick={onSend}
+            disabled={actionLoading === 'reminder'}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-white bg-gradient-to-r from-red-500 to-red-600 shadow-lg shadow-red-500/25"
+          >
+            {actionLoading === 'reminder' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Enviar recordatorio
+          </button>
+        </div>
       </div>
       <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-4 max-h-[60vh] overflow-y-auto">
         {usersWhoNotOrdered.length > 0 ? (
           <ul className="space-y-2">
-            {usersWhoNotOrdered.map((u, i) => (
-              <li key={i} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
-                <span className="font-medium text-slate-700">{u.nombre || u.email}</span>
-                {u.email && <span className="text-slate-400 text-sm truncate">{u.email}</span>}
-              </li>
-            ))}
+            {usersWhoNotOrdered.map((u, i) => {
+              const em = (u.email || '').toLowerCase();
+              const hasEmail = !!em;
+              const checked = hasEmail && emailsSet.has(em);
+              return (
+                <li key={i} className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+                  {hasEmail ? (
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleEmail(u.email)}
+                      className="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
+                      aria-label={`Enviar recordatorio a ${u.nombre || u.email}`}
+                    />
+                  ) : (
+                    <span className="w-4 h-4" aria-hidden />
+                  )}
+                  <span className="font-medium text-slate-700">{u.nombre || u.email}</span>
+                  {u.email && <span className="text-slate-400 text-sm truncate">{u.email}</span>}
+                </li>
+              );
+            })}
           </ul>
         ) : empresaUsers && empresaUsers.length === 0 ? (
           <p className="text-slate-500 py-8 text-center">Cargá la lista de empleados en la hoja <strong>usuarios_completos</strong> (A=email, B=nombre, C=token, D=turno) del Sheet.</p>
