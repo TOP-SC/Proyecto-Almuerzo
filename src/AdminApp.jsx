@@ -984,7 +984,6 @@ function MenusView({ menuCounts, menuCountsByDay }) {
     if (iB >= 0) return 1;
     return (a[0] || '').localeCompare(b[0] || '');
   });
-  const dayLabels = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
   const renderCard = (name, count, compact) => {
     const t = MENU_CARD_COLORS[name] || { bg: 'from-slate-400 to-slate-500', shadow: 'shadow-slate-400/30', text: 'text-white' };
