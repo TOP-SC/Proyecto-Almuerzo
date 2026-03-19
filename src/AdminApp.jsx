@@ -414,9 +414,14 @@ function AdminApp() {
       return true;
     }).reverse();
   })();
-  const filteredUsers = usersDeduped.filter(u =>
-    !search || u.nombre?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  const searchWords = (search || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const filteredUsers = usersDeduped.filter(u => {
+    if (!searchWords.length) return true;
+    const nombre = (u.nombre || '').toLowerCase();
+    const email = (u.email || '').toLowerCase();
+    const texto = nombre + ' ' + email;
+    return searchWords.every(w => texto.includes(w));
+  });
 
   const weekForDashboard = activeWeekKey || menuWeek.weekKey;
   const usersThisWeekRaw = users.filter(u => (u.semana || '') === weekForDashboard);
@@ -705,7 +710,7 @@ function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setS
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o email..."
+            placeholder="Buscar por nombre, apellido, email..."
             className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
@@ -1031,6 +1036,15 @@ function EmpresaView({ sommierUsers, btimeUsers }) {
 }
 
 function PendientesView({ usersWhoNotOrdered, handleSendReminder, selectedReminderEmails, setSelectedReminderEmails, actionLoading, empresaUsers, onLoadManualUsers, empresaUsersFromApi }) {
+  const [searchPendientes, setSearchPendientes] = useState('');
+  const searchWords = (searchPendientes || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const filteredPendientes = usersWhoNotOrdered.filter(u => {
+    if (!searchWords.length) return true;
+    const nombre = (u.nombre || '').toLowerCase();
+    const email = (u.email || '').toLowerCase();
+    const texto = nombre + ' ' + email;
+    return searchWords.every(w => texto.includes(w));
+  });
   const emailsSet = new Set((selectedReminderEmails || []).map(e => (e || '').toLowerCase()));
   const toggleEmail = (email) => {
     if (!email) return;
@@ -1042,7 +1056,7 @@ function PendientesView({ usersWhoNotOrdered, handleSendReminder, selectedRemind
     });
   };
   const selectAll = () => {
-    const withEmail = usersWhoNotOrdered.filter(u => u.email).map(u => u.email.toLowerCase());
+    const withEmail = filteredPendientes.filter(u => u.email).map(u => u.email.toLowerCase());
     setSelectedReminderEmails([...new Set(withEmail)]);
   };
   const selectNone = () => setSelectedReminderEmails([]);
@@ -1060,7 +1074,19 @@ function PendientesView({ usersWhoNotOrdered, handleSendReminder, selectedRemind
       )}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
         <h2 className="text-lg font-semibold text-slate-800">Quién no pidió</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {usersWhoNotOrdered.length > 0 && (
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchPendientes}
+                onChange={e => setSearchPendientes(e.target.value)}
+                placeholder="Buscar nombre, apellido, email..."
+                className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
+              />
+            </div>
+          )}
           {usersWhoNotOrdered.length > 0 && (
             <>
               <button
@@ -1094,9 +1120,10 @@ function PendientesView({ usersWhoNotOrdered, handleSendReminder, selectedRemind
         </div>
       </div>
       <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-4 max-h-[60vh] overflow-y-auto">
-        {usersWhoNotOrdered.length > 0 ? (
+          {usersWhoNotOrdered.length > 0 ? (
+          filteredPendientes.length > 0 ? (
           <ul className="space-y-2">
-            {usersWhoNotOrdered.map((u, i) => {
+            {filteredPendientes.map((u, i) => {
               const em = (u.email || '').toLowerCase();
               const hasEmail = !!em;
               const checked = hasEmail && emailsSet.has(em);
@@ -1119,6 +1146,9 @@ function PendientesView({ usersWhoNotOrdered, handleSendReminder, selectedRemind
               );
             })}
           </ul>
+          ) : (
+          <p className="text-slate-500 py-8 text-center">No hay coincidencias con &quot;{searchPendientes}&quot;.</p>
+          )
         ) : empresaUsers && empresaUsers.length === 0 ? (
           <p className="text-slate-500 py-8 text-center">Cargá la lista de empleados en la hoja <strong>usuarios_completos</strong> (A=email, B=nombre, C=token, D=turno) del Sheet.</p>
         ) : (

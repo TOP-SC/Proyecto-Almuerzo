@@ -139,6 +139,28 @@ function crearHtmlMailUsuario(nombre, url) {
     '</td></tr></table></td></tr></table></body></html>';
 }
 
+// Mail de recordatorio - mismo estilo que apertura pero con tono naranja/ámbar
+function crearHtmlMailRecordatorio(nombre, url) {
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;font-family:\'Segoe UI\',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#fff7ed 0%,#ffedd5 100%);">' +
+    '<table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 16px;"><tr><td align="center">' +
+    '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:420px;background:#ffffff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.08);overflow:hidden;border:1px solid rgba(0,0,0,0.04);">' +
+    '<tr><td style="background:linear-gradient(135deg,#ea580c 0%,#c2410c 100%);padding:28px 24px;text-align:center;">' +
+    '<h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:600;letter-spacing:-0.5px;">Recordatorio: Menú Semanal</h1>' +
+    '<p style="margin:8px 0 0;color:rgba(255,255,255,0.95);font-size:15px;">Aún no recibimos tu selección</p>' +
+    '</td></tr>' +
+    '<tr><td style="padding:28px 24px;">' +
+    '<p style="margin:0 0 16px;color:#1e293b;font-size:16px;line-height:1.5;">Hola <strong>' + nombre + '</strong>,</p>' +
+    '<p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">Aún no hemos recibido tu selección de menú para esta semana. Hacé clic en el botón para ingresar y elegir tus opciones.</p>' +
+    '<p style="margin:0 0 20px;text-align:center;">' +
+    '<a href="' + url + '" style="display:inline-block;padding:14px 32px;background:#ea580c;color:#ffffff!important;text-decoration:none;font-size:16px;font-weight:600;border-radius:10px;box-shadow:0 4px 14px rgba(234,88,12,0.4);">Elegir mi menú</a>' +
+    '</p>' +
+    '<p style="margin:0;color:#64748b;font-size:13px;text-align:center;">Si ya elegiste, podés ignorar este mensaje.</p>' +
+    '</td></tr>' +
+    '<tr><td style="padding:16px 24px;background:#fff7ed;border-top:1px solid #fed7aa;">' +
+    '<p style="margin:0;color:#9a3412;font-size:12px;">RRHH · Organización de Almuerzos</p>' +
+    '</td></tr></table></td></tr></table></body></html>';
+}
+
 // ENVÍA UN MAIL A CADA USUARIO CON SU LINK PERSONALIZADO (incluye turno)
 function enviarLinksMenuSemanal() {
   const sheet = obtenerHojaUsuarios();
@@ -778,7 +800,8 @@ function adminSendReminder(weekKey, emailsFiltro) {
       var url = APP_BASE_URL + '?u=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(row[0]) + '&name=' + encodeURIComponent(nombre) + '&turno=' + turno;
       var subject = 'Recordatorio: Menú semanal pendiente';
       var body = 'Hola ' + nombre + ',\n\nAún no hemos recibido tu selección de menú para esta semana. Por favor ingresá al siguiente enlace para elegir:\n\n' + url + '\n\nSaludos,\nRRHH / Organización de Almuerzos';
-      MailApp.sendEmail({ to: row[0], subject: subject, body: body });
+      var htmlBody = crearHtmlMailRecordatorio(nombre, url);
+      MailApp.sendEmail({ to: row[0], subject: subject, body: body, htmlBody: htmlBody });
       enviados++;
     });
     return ContentService.createTextOutput(JSON.stringify({ ok: true, enviados: enviados })).setMimeType(ContentService.MimeType.JSON);
