@@ -977,15 +977,15 @@ function MenusView({ menuCounts, menuCountsByDay }) {
   const entries = Object.entries(menuCounts).sort((a, b) => b[1] - a[1]);
   const dayLabels = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 
-  const renderCard = (name, count) => {
+  const renderCard = (name, count, compact) => {
     const t = MENU_CARD_COLORS[name] || { bg: 'from-slate-400 to-slate-500', shadow: 'shadow-slate-400/30', text: 'text-white' };
     return (
       <div
         key={name}
-        className={`rounded-2xl bg-gradient-to-br ${t.bg} p-5 shadow-lg ${t.shadow} flex flex-col items-center justify-center min-h-[120px]`}
+        className={`rounded-xl bg-gradient-to-br ${t.bg} ${t.shadow} flex flex-col items-center justify-center ${compact ? 'p-2 min-h-[64px] shadow-md' : 'p-5 min-h-[120px] shadow-lg rounded-2xl'}`}
       >
-        <span className="text-3xl font-bold text-white drop-shadow-sm">{count}</span>
-        <span className="text-sm font-medium text-white/90 mt-1 text-center">{name}</span>
+        <span className={`font-bold text-white drop-shadow-sm ${compact ? 'text-lg' : 'text-3xl'}`}>{count}</span>
+        <span className={`font-medium text-white/90 mt-0.5 text-center ${compact ? 'text-[11px]' : 'text-sm'}`}>{name}</span>
       </div>
     );
   };
@@ -1015,7 +1015,7 @@ function MenusView({ menuCounts, menuCountsByDay }) {
       {tab === 'semanal' && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {entries.map(([name, count]) => renderCard(name, count))}
+            {entries.map(([name, count]) => renderCard(name, count, false))}
           </div>
           {total > 0 && (
             <p className="mt-4 text-sm text-slate-500">Total: {total} selecciones</p>
@@ -1024,19 +1024,19 @@ function MenusView({ menuCounts, menuCountsByDay }) {
       )}
 
       {tab === 'diario' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {dayLabels.map((day) => {
             const dayCounts = menuCountsByDay?.[day] || {};
             const dayEntries = Object.entries(dayCounts).sort((a, b) => b[1] - a[1]);
             const dayTotal = Object.values(dayCounts).reduce((a, b) => a + b, 0);
             return (
               <div key={day}>
-                <h3 className="text-sm font-semibold text-slate-600 mb-3">{day} {dayTotal > 0 && `(${dayTotal})`}</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {dayEntries.map(([name, count]) => renderCard(name, count))}
+                <h3 className="text-sm font-semibold text-slate-600 mb-2">{day} {dayTotal > 0 && `(${dayTotal})`}</h3>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                  {dayEntries.map(([name, count]) => renderCard(name, count, true))}
                 </div>
                 {dayEntries.length === 0 && (
-                  <p className="text-slate-400 text-sm py-2">Sin pedidos</p>
+                  <p className="text-slate-400 text-sm py-1">Sin pedidos</p>
                 )}
               </div>
             );

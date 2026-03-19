@@ -742,28 +742,49 @@ function adminPdfGmail(weekKey) {
       seenPdf[key] = true;
       return true;
     });
+    // Ordenar por turno (1 primero, 2 después) y luego por apellido (última palabra del nombre)
+    function apellido(nombre) {
+      var s = (nombre || '').toString().trim();
+      var parts = s.split(/\s+/);
+      return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : s.toLowerCase();
+    }
+    filtrados.sort(function(a, b) {
+      var t1 = String(a[4] || '').indexOf('2') !== -1 ? 2 : 1;
+      var t2 = String(b[4] || '').indexOf('2') !== -1 ? 2 : 1;
+      if (t1 !== t2) return t1 - t2;
+      return apellido(a[2]).localeCompare(apellido(b[2]));
+    });
     var ssNew = SpreadsheetApp.create('Resumen Menus ' + (wk || 'semana'));
     var hoja = ssNew.getSheets()[0];
     hoja.setName('Resumen');
     var filas = [['Usuario', 'Turno', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Detalle']];
+    var contadorMenus = {};
     filtrados.forEach(function(row) {
       var det = {};
       try { var dStr = (row[11] || '').toString(); if (dStr) det = JSON.parse(dStr); } catch (e) {}
       var detStr = [];
       for (var i = 0; i < 5; i++) { if (det[i]) detStr.push(['Lun','Mar','Mié','Jue','Vie'][i] + ': ' + det[i]); }
+      var m5 = extraerNumeroMenu(row[5]), m6 = extraerNumeroMenu(row[6]), m7 = extraerNumeroMenu(row[7]), m8 = extraerNumeroMenu(row[8]), m9 = extraerNumeroMenu(row[9]);
+      [m5, m6, m7, m8, m9].forEach(function(m) { if (m) contadorMenus[m] = (contadorMenus[m] || 0) + 1; });
       filas.push([
         (row[2] || '').toString(),
         (row[4] || '').toString(),
-        extraerNumeroMenu(row[5]),
-        extraerNumeroMenu(row[6]),
-        extraerNumeroMenu(row[7]),
-        extraerNumeroMenu(row[8]),
-        extraerNumeroMenu(row[9]),
+        m5, m6, m7, m8, m9,
         detStr.join(' | ') || ''
       ]);
     });
+    // Resumen de cantidades al final
+    filas.push([]);
+    filas.push(['RESUMEN - Cantidad por menú', '', '', '', '', '', '', '']);
+    var menuOrden = ['Menu 1', 'Menu 2', 'Menu 3', 'Menu 4', 'Menu 5', 'REMOTO', 'SIN VIANDA'];
+    var otros = Object.keys(contadorMenus).filter(function(k) { return menuOrden.indexOf(k) === -1; });
+    menuOrden.concat(otros).forEach(function(m) {
+      if (contadorMenus[m]) filas.push([m + ': ' + contadorMenus[m], '', '', '', '', '', '', '']);
+    });
     hoja.getRange(1, 1, filas.length, 8).setValues(filas);
     hoja.getRange(1, 1, 1, 8).setFontWeight('bold');
+    var resumenRow = filas.findIndex(function(r) { return (r[0] || '').toString().indexOf('RESUMEN') !== -1; });
+    if (resumenRow >= 0) hoja.getRange(resumenRow + 1, 1, resumenRow + 1, 8).setFontWeight('bold');
     hoja.autoResizeColumns(1, 8);
     SpreadsheetApp.flush();
     var pdfBlob = ssNew.getAs('application/pdf');
