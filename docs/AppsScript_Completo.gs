@@ -807,16 +807,10 @@ function adminPdfGmail(weekKey) {
         detStr.join(' | ') || ''
       ]);
     });
-    // Resumen semanal
+    // Resumen por día (sin resumen semanal): una fila por menú + fila TOTAL viandas por día
     filas.push(['', '', '', '', '', '', '', '']);
-    filas.push(['RESUMEN SEMANAL', '', '', '', '', '', '', '']);
     var menuOrden = ['Menu 1', 'Menu 2', 'Menu 3', 'Menu 4', 'Menu 5', 'REMOTO', 'SIN VIANDA'];
     var otros = Object.keys(contadorMenus).filter(function(k) { return menuOrden.indexOf(k) === -1; });
-    menuOrden.concat(otros).forEach(function(m) {
-      if (contadorMenus[m]) filas.push([m + ': ' + contadorMenus[m], '', '', '', '', '', '', '']);
-    });
-    // Resumen por día (aprovecha columnas Lunes..Viernes)
-    filas.push(['', '', '', '', '', '', '', '']);
     filas.push(['RESUMEN POR DÍA', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', '', '']);
     menuOrden.concat(otros).forEach(function(m) {
       var tieneAlgo = false;
@@ -829,13 +823,23 @@ function adminPdfGmail(weekKey) {
       row.push('', '');
       if (tieneAlgo) filas.push(row);
     });
+    // Total de viandas por día (suma de todos los menús ese día)
+    var totalPorDia = [0, 0, 0, 0, 0];
+    for (var td = 0; td < 5; td++) {
+      var keysD = Object.keys(contadorPorDia[td]);
+      for (var tk = 0; tk < keysD.length; tk++) {
+        totalPorDia[td] += contadorPorDia[td][keysD[tk]] || 0;
+      }
+    }
+    filas.push(['TOTAL VIANDAS', totalPorDia[0], totalPorDia[1], totalPorDia[2], totalPorDia[3], totalPorDia[4], '', '']);
     hoja.getRange(1, 1, filas.length, 8).setValues(filas);
     hoja.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#1e3a5f').setFontColor('#ffffff');
     for (var r = 2; r <= filtrados.length + 1; r++) {
       hoja.getRange(r, 1, r, 8).setBackground(r % 2 === 0 ? '#f8fafc' : '#ffffff');
     }
     for (var ri = 0; ri < filas.length; ri++) {
-      if ((filas[ri][0] || '').toString().indexOf('RESUMEN') !== -1) {
+      var lbl = (filas[ri][0] || '').toString();
+      if (lbl.indexOf('RESUMEN') !== -1 || lbl.indexOf('TOTAL VIANDAS') !== -1) {
         hoja.getRange(ri + 1, 1, ri + 1, 8).setFontWeight('bold').setBackground('#e2e8f0');
       }
     }
