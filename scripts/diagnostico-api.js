@@ -5,7 +5,7 @@
  * Hace las mismas peticiones que la app y muestra la respuesta cruda.
  */
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzFtSIXEUaSRyygEwCHrdHlg1l3CX0DkPxYeUnUUhUB60zuSmPhPdt9MzOXlFWccU7e/exec'
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGT2wpze1xsDR4AdFHHPOmHq5p9tpizMgCVeti364Dajk4A5cBb7_EKlyKGwLPBQ/exec'
 const ADMIN_SECRET = 'Admin.2026'
 
 async function test(name, body) {
