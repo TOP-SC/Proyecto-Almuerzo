@@ -64,6 +64,8 @@ function AdminApp() {
   const [users, setUsers] = useState([]);
   /** null = aún no hubo respuesta del Sheet; [] = cargó vacío o sin filas válidas */
   const [empresaUsers, setEmpresaUsers] = useState(null);
+  /** debug del último admin_list_empresa (p. ej. proxy fallback si Apps Script devolvió HTML) */
+  const [empresaDebug, setEmpresaDebug] = useState(null);
   const [weeklyMenu, setWeeklyMenu] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -115,7 +117,7 @@ function AdminApp() {
       const iv = setInterval(loadUsers, 30000);
       return () => clearInterval(iv);
     }
-  }, [isAuth, activeView]);
+  }, [isAuth, activeView, weekKeyOverride]);
 
   useEffect(() => {
     if (isAuth && adminSecret && activeView === 'dashboard') {
@@ -131,12 +133,14 @@ function AdminApp() {
         body: JSON.stringify({ action: 'admin_list_empresa', adminSecret }),
       });
       const data = await res.json().catch(() => ({}));
+      setEmpresaDebug(data.debug || (data.error ? { error: data.error } : null));
       if (data.ok && Array.isArray(data.users)) {
         setEmpresaUsers(data.users);
       } else {
         setEmpresaUsers([]);
       }
     } catch (_) {
+      setEmpresaDebug({ proxyReason: 'client_error' });
       setEmpresaUsers([]);
     }
   };
@@ -719,6 +723,7 @@ function AdminApp() {
               onLoadManualUsers={setManualEmpresaUsers}
               empresaUsersFromApi={empresaUsers}
               empresaListFetched={empresaUsers !== null}
+              empresaDebug={empresaDebug}
             />
           )}
           {activeView === 'pendientes' && (
@@ -732,6 +737,7 @@ function AdminApp() {
               onLoadManualUsers={setManualEmpresaUsers}
               empresaUsersFromApi={empresaUsers}
               empresaListFetched={empresaUsers !== null}
+              empresaDebug={empresaDebug}
             />
           )}
         </div>
@@ -756,7 +762,7 @@ function parsePastedUsers(text) {
   return out;
 }
 
-function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setShowAddForm, addForm, setAddForm, weeklyMenu, editingUser, setEditingUser, handleAdd, handleCancel, handleUpdate, actionLoading, lastDebug, empresaUsers, usersThisWeek, onLoadManualUsers, empresaUsersFromApi, empresaListFetched }) {
+function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setShowAddForm, addForm, setAddForm, weeklyMenu, editingUser, setEditingUser, handleAdd, handleCancel, handleUpdate, actionLoading, lastDebug, empresaUsers, usersThisWeek, onLoadManualUsers, empresaUsersFromApi, empresaListFetched, empresaDebug }) {
   const [selectedUserLookup, setSelectedUserLookup] = useState('');
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [pasteText, setPasteText] = useState('');
@@ -776,9 +782,18 @@ function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setS
   ) : null;
   const selectedEmpresaUser = selectedFromDropdown;
 
+  const proxyFallback = !!(lastDebug && lastDebug.fallback) || !!(empresaDebug && empresaDebug.fallback);
+  const proxyReason = (lastDebug && lastDebug.proxyReason) || (empresaDebug && empresaDebug.proxyReason);
+
   return (
     <div className="max-w-4xl">
-      {empresaListFetched && Array.isArray(empresaUsersFromApi) && empresaUsersFromApi.length === 0 && (
+      {proxyFallback && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-900 text-sm">
+          <strong>El servidor (Vercel) no recibió JSON válido desde Apps Script.</strong> Suele pasar si la URL del Web App es vieja, el despliegue fue borrado, o el acceso no es &quot;Cualquier persona&quot;. En Vercel configurá la variable <code className="bg-red-100 px-1 rounded">APPS_SCRIPT_URL</code> con la URL <code className="bg-red-100 px-1 rounded">…/exec</code> nueva. Si el script es una librería o Web App sin contenedor, en Apps Script ejecutá una vez <code className="bg-red-100 px-1 rounded">registrarIdSpreadsheetEnPropiedades</code> (desde el editor, con el Sheet abierto) o definí <code className="bg-red-100 px-1 rounded">USUARIOS_SPREADSHEET_ID</code> en el .gs.
+          {proxyReason ? <span className="block mt-1 text-red-800">Motivo proxy: {String(proxyReason)}</span> : null}
+        </div>
+      )}
+      {empresaListFetched && Array.isArray(empresaUsersFromApi) && empresaUsersFromApi.length === 0 && !proxyFallback && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3">
           <span className="text-amber-800 text-sm">No hay filas en la hoja de usuarios del Sheet (o no se detectaron emails). Revisá <strong>usuarios_completos</strong> (columna A=email) o pegá la lista manualmente.</span>
           <button type="button" onClick={() => setShowPasteModal(true)} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700">Pegar lista</button>
@@ -939,7 +954,9 @@ function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setS
             </div>
           ))}
           {filteredUsers.length === 0 && !loading && (
-            <div className="text-center py-8 text-slate-500">No hay usuarios anotados para esta semana.</div>
+            <div className="text-center py-8 text-slate-500">
+              {proxyFallback ? 'No se pudieron cargar datos: revisá la conexión con Apps Script (mensaje rojo arriba).' : 'No hay usuarios anotados para esta semana.'}
+            </div>
           )}
         </div>
       )}
@@ -1202,7 +1219,7 @@ function EmpresaView({ sommierUsers, btimeUsers }) {
   );
 }
 
-function PendientesView({ usersWhoNotOrdered, handleSendReminder, selectedReminderEmails, setSelectedReminderEmails, actionLoading, empresaUsers, onLoadManualUsers, empresaUsersFromApi, empresaListFetched }) {
+function PendientesView({ usersWhoNotOrdered, handleSendReminder, selectedReminderEmails, setSelectedReminderEmails, actionLoading, empresaUsers, onLoadManualUsers, empresaUsersFromApi, empresaListFetched, empresaDebug }) {
   const [searchPendientes, setSearchPendientes] = useState('');
   const searchWords = (searchPendientes || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
   const filteredPendientes = usersWhoNotOrdered.filter(u => {
@@ -1232,9 +1249,17 @@ function PendientesView({ usersWhoNotOrdered, handleSendReminder, selectedRemind
     handleSendReminder(toSend);
   };
 
+  const proxyFallback = !!(empresaDebug && empresaDebug.fallback);
+
   return (
     <div className="max-w-4xl">
-      {empresaListFetched && Array.isArray(empresaUsersFromApi) && empresaUsersFromApi.length === 0 && (
+      {proxyFallback && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-900 text-sm">
+          <strong>Apps Script no respondió con JSON.</strong> Revisá URL de despliegue <code className="bg-red-100 px-1 rounded">/exec</code> y variable <code className="bg-red-100 px-1 rounded">APPS_SCRIPT_URL</code> en Vercel.
+          {empresaDebug?.proxyReason ? <span className="block mt-1">Motivo: {String(empresaDebug.proxyReason)}</span> : null}
+        </div>
+      )}
+      {empresaListFetched && Array.isArray(empresaUsersFromApi) && empresaUsersFromApi.length === 0 && !proxyFallback && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3">
           <span className="text-amber-800 text-sm">La hoja de usuarios está vacía o sin emails válidos. Cargá <strong>usuarios_completos</strong> o usá &quot;Pegar lista&quot; en Listado pedidos.</span>
         </div>
@@ -1319,7 +1344,11 @@ function PendientesView({ usersWhoNotOrdered, handleSendReminder, selectedRemind
         ) : !empresaListFetched ? (
           <p className="text-slate-500 py-8 text-center">Cargando lista de empresa desde el servidor…</p>
         ) : empresaUsers.length === 0 ? (
-          <p className="text-slate-500 py-8 text-center">Cargá la lista de empleados en la hoja <strong>usuarios_completos</strong> (A=email, B=nombre, C=token, D=turno) del Sheet.</p>
+          <p className="text-slate-500 py-8 text-center">
+            {proxyFallback ? 'No se pudo leer la lista desde el servidor: revisá el mensaje rojo arriba y la URL de Apps Script.' : (
+              <>Cargá la lista de empleados en la hoja <strong>usuarios_completos</strong> (A=email, B=nombre, C=token, D=turno) del Sheet.</>
+            )}
+          </p>
         ) : (
           <p className="text-slate-500 py-8 text-center">Todos ya pidieron.</p>
         )}

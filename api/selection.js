@@ -1,4 +1,7 @@
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzGT2wpze1xsDR4AdFHHPOmHq5p9tpizMgCVeti364Dajk4A5cBb7_EKlyKGwLPBQ/exec'
+// En Vercel: Project → Settings → Environment Variables → APPS_SCRIPT_URL = tu URL /exec (sin tocar código en cada despliegue)
+const APPS_SCRIPT_URL =
+  (typeof process !== 'undefined' && process.env && process.env.APPS_SCRIPT_URL) ||
+  'https://script.google.com/macros/s/AKfycbzGT2wpze1xsDR4AdFHHPOmHq5p9tpizMgCVeti364Dajk4A5cBb7_EKlyKGwLPBQ/exec'
 
 async function getBody(req) {
   if (req.body != null && typeof req.body === 'object') return req.body
@@ -41,8 +44,12 @@ export default async function handler(req, res) {
     try {
       response = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(body),
+        redirect: 'follow',
       })
     } catch (fetchErr) {
       const fallback = getFallbackResponse(body)

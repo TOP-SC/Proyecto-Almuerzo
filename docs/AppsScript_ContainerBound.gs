@@ -19,7 +19,18 @@ const HOJA_CONFIG = 'Config';
 const COCINA_EMAIL = 'juan.billiot@sommiercenter.com'; // Email de la gente de viandas/cocina (confirmar)
 const ADMIN_SECRET = 'Admin.2026'; // Contraseña admin
 // Spreadsheet con la lista de usuarios. Vacío = intenta spreadsheet activo + propiedad SPREADSHEET_ID.
+// Web App: si el script es librería o getActiveSpreadsheet() devuelve null, pegá aquí el ID (entre /d/ e /edit en la URL del Sheet)
+// o ejecutá una vez registrarIdSpreadsheetEnPropiedades() desde el editor con el Sheet abierto.
 const USUARIOS_SPREADSHEET_ID = '';  // Opcional: pegá el ID de la URL del Sheet. Vacío = contenedor o propiedad.
+
+/** Ejecutar UNA vez desde el editor (Menú ▶) con el Google Sheet abierto: guarda SPREADSHEET_ID en propiedades del script (necesario si el Web App no ve el contenedor). */
+function registrarIdSpreadsheetEnPropiedades() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) {
+    throw new Error('Abrí el spreadsheet vinculado a este proyecto y volvé a ejecutar.');
+  }
+  PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', ss.getId());
+}
 // GID de la hoja de usuarios (#gid= en la URL). 0 = no usar GID (recomendado: se usa el nombre usuarios_completos).
 // Si un GID viejo apunta a otra pestaña, la lista de empresa sale vacía aunque usuarios_completos esté llena.
 const USUARIOS_SHEET_GID = 0;
