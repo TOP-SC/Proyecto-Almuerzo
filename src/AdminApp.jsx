@@ -76,6 +76,8 @@ function AdminApp() {
   const [activeView, setActiveView] = useState('dashboard');
   const [manualEmpresaUsers, setManualEmpresaUsers] = useState([]);
   const [selectedReminderEmails, setSelectedReminderEmails] = useState([]);
+  const [mailFrom, setMailFrom] = useState(() => sessionStorage.getItem('adminMailFrom') || '');
+  const [mailFromName, setMailFromName] = useState(() => sessionStorage.getItem('adminMailFromName') || '');
 
   const menuWeek = getMenuWeek();
   const activeWeekKey = weekKeyOverride.trim() || menuWeek.weekKey;
@@ -87,6 +89,13 @@ function AdminApp() {
       setIsAuth(true);
     }
   }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem('adminMailFrom', mailFrom);
+  }, [mailFrom]);
+  useEffect(() => {
+    sessionStorage.setItem('adminMailFromName', mailFromName);
+  }, [mailFromName]);
 
   useEffect(() => {
     if (isAuth && adminSecret) {
@@ -273,6 +282,15 @@ function AdminApp() {
     }
   };
 
+  const mailPayload = () => {
+    const o = {};
+    const f = mailFrom.trim();
+    const n = mailFromName.trim();
+    if (f) o.mailFrom = f;
+    if (n) o.mailFromName = n;
+    return o;
+  };
+
   const handleSendOpening = async () => {
     if (!confirm('¿Enviar mails de apertura a toda la empresa? Cada persona recibirá su link personalizado.')) return;
     setActionLoading('opening');
@@ -281,7 +299,7 @@ function AdminApp() {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'admin_send_opening', adminSecret }),
+        body: JSON.stringify({ action: 'admin_send_opening', adminSecret, ...mailPayload() }),
       });
       const data = await res.json().catch(() => ({}));
       if (data.ok) {
@@ -414,7 +432,7 @@ function AdminApp() {
     setActionLoading('reminder');
     setError('');
     try {
-      const body = { action: 'admin_send_reminder', adminSecret, weekKey: activeWeekKey };
+      const body = { action: 'admin_send_reminder', adminSecret, weekKey: activeWeekKey, ...mailPayload() };
       if (count > 0) body.emails = emailsToSend;
       const res = await fetch(API_URL, {
         method: 'POST',
@@ -579,41 +597,67 @@ function AdminApp() {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white/80 backdrop-blur border-b border-slate-200/80 px-4 py-2.5 flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-slate-600">Semana:</label>
+        <header className="bg-white/80 backdrop-blur border-b border-slate-200/80 px-4 py-2.5 flex flex-col gap-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-slate-600">Semana:</label>
+              <input
+                type="text"
+                value={weekKeyOverride}
+                onChange={e => setWeekKeyOverride(e.target.value)}
+                placeholder={menuWeek.weekKey}
+                className="w-36 px-2 py-1 border border-slate-200 rounded text-sm"
+                title="Vacío=todas. Ej: 2026-03-09"
+              />
+              <button onClick={loadUsers} className="text-sm text-blue-600 hover:underline">Actualizar</button>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={async () => {
+                  setError('');
+                  setConnectionOk(null);
+                  try {
+                    const res = await fetch(API_URL, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ action: 'admin_ping', adminSecret }),
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                      setConnectionOk(true);
+                      setTimeout(() => setConnectionOk(null), 3000);
+                    } else setError(data.error || 'Error');
+                  } catch (e) { setError(e.message || 'Error'); }
+                }}
+                className="text-sm text-slate-600 hover:underline"
+              >
+                Probar conexión
+              </button>
+              {connectionOk && <span className="text-sm text-green-600">✓ OK</span>}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-end gap-2 text-xs border-t border-slate-100 pt-2">
+            <span className="text-slate-600 font-medium shrink-0">Enviar apertura y recordatorios como:</span>
+            <input
+              type="email"
+              value={mailFrom}
+              onChange={e => setMailFrom(e.target.value)}
+              placeholder="ej. soporte@empresa.com"
+              className="min-w-[180px] max-w-[280px] flex-1 px-2 py-1 border border-slate-200 rounded text-sm"
+              title="Opcional. Debe estar configurado en Gmail del usuario que desplegó el script como «Enviar correo como»."
+            />
             <input
               type="text"
-              value={weekKeyOverride}
-              onChange={e => setWeekKeyOverride(e.target.value)}
-              placeholder={menuWeek.weekKey}
-              className="w-36 px-2 py-1 border border-slate-200 rounded text-sm"
-              title="Vacío=todas. Ej: 2026-03-09"
+              value={mailFromName}
+              onChange={e => setMailFromName(e.target.value)}
+              placeholder="Nombre visible (opcional)"
+              className="min-w-[140px] max-w-[200px] px-2 py-1 border border-slate-200 rounded text-sm"
             />
-            <button onClick={loadUsers} className="text-sm text-blue-600 hover:underline">Actualizar</button>
+            <span className="text-slate-400 text-[11px] leading-snug max-w-xl">
+              Vacío = cuenta del despliegue de Apps Script. Con alias: el deploy debe tener ese remitente en Gmail.
+            </span>
           </div>
-          <button
-            onClick={async () => {
-              setError('');
-              setConnectionOk(null);
-              try {
-                const res = await fetch(API_URL, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ action: 'admin_ping', adminSecret }),
-                });
-                const data = await res.json();
-                if (data.ok) {
-                  setConnectionOk(true);
-                  setTimeout(() => setConnectionOk(null), 3000);
-                } else setError(data.error || 'Error');
-              } catch (e) { setError(e.message || 'Error'); }
-            }}
-            className="text-sm text-slate-600 hover:underline"
-          >
-            Probar conexión
-          </button>
-          {connectionOk && <span className="text-sm text-green-600">✓ OK</span>}
         </header>
 
         {error && (

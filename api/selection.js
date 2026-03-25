@@ -12,13 +12,13 @@ async function getBody(req) {
   })
 }
 
-/** Fallback cuando Apps Script falla: permite que la app cargue para acciones no críticas */
+/** Fallback cuando Apps Script falla (red, HTML, 5xx): la app no debe recibir HTTP 500 vacío */
 function getFallbackResponse(body) {
   const action = (body?.action || '').toString().trim()
   if (action === 'get_cycle_status') return { ok: true, abierto: true }
   if (action === 'admin_ping') return { ok: true, message: 'pong' }
   if (action === 'admin_list') return { ok: true, users: [], debug: { fallback: true } }
-  if (action === 'admin_list_empresa') return { ok: true, users: [], debug: 'fallback' }
+  if (action === 'admin_list_empresa') return { ok: true, users: [], debug: { fallback: true } }
   return null
 }
 
@@ -47,9 +47,10 @@ export default async function handler(req, res) {
     } catch (fetchErr) {
       const fallback = getFallbackResponse(body)
       if (fallback) {
-        return res.status(200).json(fallback)
+        const dbg = typeof fallback.debug === 'object' && fallback.debug ? fallback.debug : {}
+        return res.status(200).json({ ...fallback, debug: { ...dbg, proxyReason: 'fetch_error' } })
       }
-      return res.status(500).json({ ok: false, error: 'No se pudo conectar al backend. Revisá la URL de Apps Script.' })
+      return res.status(200).json({ ok: false, error: 'No se pudo conectar al backend. Revisá la URL de Apps Script.' })
     }
 
     const text = await response.text()
@@ -58,8 +59,9 @@ export default async function handler(req, res) {
       data = JSON.parse(text)
     } catch {
       const fallback = getFallbackResponse(body)
-      if (fallback && (response.status === 500 || text.includes('unable to open the file'))) {
-        return res.status(200).json(fallback)
+      if (fallback && (response.status >= 400 || text.trim().startsWith('<!'))) {
+        const dbg = typeof fallback.debug === 'object' && fallback.debug ? fallback.debug : {}
+        return res.status(200).json({ ...fallback, debug: { ...dbg, proxyReason: 'invalid_json' } })
       }
       let errMsg = 'El backend no devolvió JSON válido'
       if (text.trim().startsWith('<!')) {
@@ -69,16 +71,19 @@ export default async function handler(req, res) {
       data = { ok: false, error: errMsg, raw: text.slice(0, 500) }
     }
 
-    if (data.ok === false && response.status === 500) {
+    if (!response.ok) {
       const fallback = getFallbackResponse(body)
       if (fallback) {
-        return res.status(200).json(fallback)
+        const dbg = typeof fallback.debug === 'object' && fallback.debug ? fallback.debug : {}
+        return res.status(200).json({
+          ...fallback,
+          debug: { ...dbg, proxyReason: 'http_' + response.status, backendSnippet: (data && data.error) || String(text).slice(0, 120) }
+        })
       }
     }
 
-    const status = data.ok === false && !response.ok ? 500 : (response.ok ? 200 : 500)
-    res.status(status).json(data)
+    return res.status(200).json(data)
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message })
+    return res.status(200).json({ ok: false, error: err.message })
   }
 }

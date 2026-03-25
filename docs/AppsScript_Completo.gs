@@ -27,18 +27,12 @@ function generateToken_() {
   return Utilities.getUuid();
 }
 
-// Obtiene la hoja de usuarios. Si USUARIOS_SPREADSHEET_ID está definido, usa ese (evita getActiveSpreadsheet en scripts standalone).
+// Obtiene la hoja de usuarios (mismo spreadsheet que obtenerSpreadsheetPrincipal).
 function obtenerHojaUsuarios() {
-  var ssConst = null;
-  if (typeof USUARIOS_SPREADSHEET_ID === 'string' && USUARIOS_SPREADSHEET_ID.trim()) {
-    try { ssConst = SpreadsheetApp.openById(USUARIOS_SPREADSHEET_ID.trim()); } catch (e) {}
-  }
-  if (!ssConst) {
-    try { ssConst = SpreadsheetApp.getActiveSpreadsheet(); } catch (e) { return null; }
-  }
+  var ssConst = obtenerSpreadsheetPrincipal();
+  if (!ssConst) return null;
   try {
-    var cfgSs = obtenerSpreadsheetPrincipal();
-    var cfg = cfgSs ? cfgSs.getSheetByName(HOJA_CONFIG) : null;
+    var cfg = ssConst.getSheetByName(HOJA_CONFIG);
     if (cfg && cfg.getLastRow && cfg.getLastRow() >= 1) {
       var cfgData = cfg.getRange(1, 1, cfg.getLastRow(), 2).getValues();
       for (var c = 0; c < cfgData.length; c++) {
@@ -269,11 +263,51 @@ function doGet(e) {
 }
 
 // === CICLO APERTURA/CIERRE ===
+/** Abre el Sheet principal: constante USUARIOS_SPREADSHEET_ID, propiedad script SPREADSHEET_ID, o spreadsheet activo (script contenedor). */
 function obtenerSpreadsheetPrincipal() {
   if (typeof USUARIOS_SPREADSHEET_ID === 'string' && USUARIOS_SPREADSHEET_ID.trim()) {
-    try { return SpreadsheetApp.openById(USUARIOS_SPREADSHEET_ID.trim()); } catch (e) {}
+    try { return SpreadsheetApp.openById(USUARIOS_SPREADSHEET_ID.trim()); } catch (e) { Logger.log('openById USUARIOS: ' + e); }
   }
-  try { return SpreadsheetApp.getActiveSpreadsheet(); } catch (e) { return null; }
+  try {
+    var pid = (PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID') || '').trim();
+    if (pid) {
+      try { return SpreadsheetApp.openById(pid); } catch (e2) { Logger.log('openById SPREADSHEET_ID: ' + e2); }
+    }
+  } catch (eP) {}
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (ss) return ss;
+  } catch (e) {}
+  return null;
+}
+
+/**
+ * Mails de apertura/recordatorio: remitente opcional (alias "Enviar correo como" en Gmail).
+ * Si falla GmailApp con "from", se reintenta con MailApp sin alias.
+ */
+function enviarMailAdmin_(opts) {
+  var to = opts.to;
+  var subject = opts.subject;
+  var body = opts.body || '';
+  var htmlBody = opts.htmlBody;
+  var fromAddr = (opts.from || '').toString().trim();
+  var fromName = (opts.fromName || '').toString().trim();
+  var gOpts = {};
+  if (htmlBody) gOpts.htmlBody = htmlBody;
+  if (fromName) gOpts.name = fromName;
+  if (fromAddr) {
+    gOpts.from = fromAddr;
+    try {
+      GmailApp.sendEmail(to, subject, body, gOpts);
+      return;
+    } catch (e) {
+      Logger.log('GmailApp desde ' + fromAddr + ': ' + e);
+    }
+  }
+  var mOpts = { to: to, subject: subject, body: body };
+  if (htmlBody) mOpts.htmlBody = htmlBody;
+  if (fromName) mOpts.name = fromName;
+  MailApp.sendEmail(mOpts);
 }
 
 function obtenerHojaConfig() {
@@ -553,7 +587,7 @@ function handleAdminAction(data) {
       return adminListEmpresa();
     }
     if (action === 'admin_send_opening') {
-      return adminSendOpening();
+      return adminSendOpening(data);
     }
     if (action === 'admin_pdf_gmail') {
       return adminPdfGmail(data.weekKey);
@@ -562,7 +596,7 @@ function handleAdminAction(data) {
       return adminPdfGmailDia(data.weekKey);
     }
     if (action === 'admin_send_reminder') {
-      return adminSendReminder(data.weekKey, data.emails);
+      return adminSendReminder(data.weekKey, data.emails, data);
     }
     if (action === 'admin_cycle_open' || String(action).indexOf('admin_cycle_open') === 0) {
       setCycleState(data.weekKey || '', true);
@@ -738,8 +772,11 @@ function adminListEmpresa() {
   }
 }
 
-// Envía mails de apertura a TODA la empresa (sin filtro TEST_EMAILS)
-function adminSendOpening() {
+// Envía mails de apertura a TODA la empresa (sin filtro TEST_EMAILS). data.mailFrom / mailFromName = opcional.
+function adminSendOpening(data) {
+  data = data || {};
+  var mailFrom = (data.mailFrom || '').toString().trim();
+  var mailFromName = (data.mailFromName || '').toString().trim();
   try {
     var sheet = obtenerHojaUsuarios();
     if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder a la hoja de usuarios' })).setMimeType(ContentService.MimeType.JSON);
@@ -748,9 +785,9 @@ function adminSendOpening() {
     if (lastRow < 2) {
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No hay usuarios en la hoja' })).setMimeType(ContentService.MimeType.JSON);
     }
-    var data = sheet.getRange(2, 1, lastRow, 4).getValues();
+    var dataRows = sheet.getRange(2, 1, lastRow, 4).getValues();
     var enviados = 0;
-    data.forEach(function(row) {
+    dataRows.forEach(function(row) {
       var email = (row[0] || '').toString().trim();
       var nombre = (row[1] || '').toString().trim() || 'Colaborador';
       var token = (row[2] || '').toString();
@@ -759,11 +796,13 @@ function adminSendOpening() {
       var url = APP_BASE_URL + '?u=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(nombre) + '&turno=' + turno;
       var subject = 'Men\u00fa semanal disponible';
       var htmlBody = crearHtmlMailUsuario(nombre, url);
-      MailApp.sendEmail({
+      enviarMailAdmin_({
         to: email,
         subject: subject,
         body: 'Buen d\u00eda ' + nombre + ',\n\nYa est\u00e1 disponible el men\u00fa semanal. Ingres\u00e1 al siguiente enlace para elegir tu men\u00fa:\n\n' + url + '\n\nSaludos,\nRRHH / Organizaci\u00f3n de Almuerzos',
-        htmlBody: htmlBody
+        htmlBody: htmlBody,
+        from: mailFrom,
+        fromName: mailFromName
       });
       enviados++;
     });
@@ -967,7 +1006,11 @@ function adminPdfGmailDia(weekKey) {
 
 // Envía recordatorio a quienes no pidieron menú
 // emails: array opcional de emails; si se pasa, solo envía a esos; si no, envía a todos los que no pidieron
-function adminSendReminder(weekKey, emailsFiltro) {
+// data: mailFrom / mailFromName opcional
+function adminSendReminder(weekKey, emailsFiltro, data) {
+  data = data || {};
+  var mailFrom = (data.mailFrom || '').toString().trim();
+  var mailFromName = (data.mailFromName || '').toString().trim();
   try {
     var sheetResp = obtenerHojaRespuestas();
     var sheetEmp = obtenerHojaUsuarios();
@@ -1008,7 +1051,14 @@ function adminSendReminder(weekKey, emailsFiltro) {
       var subject = 'Recordatorio: Men\u00fa semanal pendiente';
       var body = 'Hola ' + nombre + ',\n\nA\u00fan no hemos recibido tu selecci\u00f3n de men\u00fa para esta semana. Por favor ingres\u00e1 al siguiente enlace para elegir:\n\n' + url + '\n\nSaludos,\nRRHH / Organizaci\u00f3n de Almuerzos';
       var htmlBody = crearHtmlMailRecordatorio(nombre, url);
-      MailApp.sendEmail({ to: row[0], subject: subject, body: body, htmlBody: htmlBody });
+      enviarMailAdmin_({
+        to: row[0],
+        subject: subject,
+        body: body,
+        htmlBody: htmlBody,
+        from: mailFrom,
+        fromName: mailFromName
+      });
       enviados++;
     });
     return ContentService.createTextOutput(JSON.stringify({ ok: true, enviados: enviados })).setMimeType(ContentService.MimeType.JSON);
