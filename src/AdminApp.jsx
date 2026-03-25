@@ -309,6 +309,28 @@ function AdminApp() {
     }
   };
 
+  const handlePdfGmailDia = async () => {
+    setActionLoading('pdfdia');
+    setError('');
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'admin_pdf_gmail_dia', adminSecret, weekKey: activeWeekKey }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok && data.gmailUrl) {
+        window.open(data.gmailUrl, '_blank', 'noopener');
+      } else {
+        setError(data.error || 'Error al generar PDF del día');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const [cycleOpen, setCycleOpen] = useState(null);
 
   const loadCycleStatus = async () => {
@@ -595,6 +617,7 @@ function AdminApp() {
               confirmChartData={confirmChartData}
               handleSendOpening={handleSendOpening}
               handlePdfGmail={handlePdfGmail}
+              handlePdfGmailDia={handlePdfGmailDia}
               actionLoading={actionLoading}
               cycleOpen={cycleOpen}
               handleCycleOpen={handleCycleOpen}
@@ -868,7 +891,7 @@ const MENU_CARD_COLORS = {
   'SIN VIANDA': { bg: 'from-slate-400 to-slate-500', shadow: 'shadow-slate-400/30', text: 'text-white' },
 };
 
-function DashboardView({ menuChartData, confirmChartData, handleSendOpening, handlePdfGmail, actionLoading, cycleOpen, handleCycleOpen, handleCycleClose, weekLabel }) {
+function DashboardView({ menuChartData, confirmChartData, handleSendOpening, handlePdfGmail, handlePdfGmailDia, actionLoading, cycleOpen, handleCycleOpen, handleCycleClose, weekLabel }) {
   return (
     <div className="max-w-4xl h-full flex flex-col gap-4">
       {/* Ciclo apertura/cierre */}
@@ -960,11 +983,20 @@ function DashboardView({ menuChartData, confirmChartData, handleSendOpening, han
         </button>
         <button
           onClick={handlePdfGmail}
-          disabled={actionLoading === 'pdf'}
+          disabled={actionLoading === 'pdf' || actionLoading === 'pdfdia'}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all bg-gradient-to-r from-green-500 to-emerald-600"
         >
           {actionLoading === 'pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
           Menú a proveedor
+        </button>
+        <button
+          onClick={handlePdfGmailDia}
+          disabled={actionLoading === 'pdf' || actionLoading === 'pdfdia'}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 transition-all bg-gradient-to-r from-teal-500 to-emerald-700"
+          title="Solo el día de hoy (Argentina), según la semana seleccionada. Fin de semana: no disponible."
+        >
+          {actionLoading === 'pdfdia' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+          Menú del día a proveedor
         </button>
       </div>
     </div>

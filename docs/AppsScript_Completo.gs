@@ -183,6 +183,28 @@ function crearHtmlMailProveedor(pdfUrl, weekKey) {
     '</td></tr></table></td></tr></table></body></html>';
 }
 
+function crearHtmlMailProveedorDia(pdfUrl, weekKey, dayLabel) {
+  var dl = dayLabel || 'd\u00eda';
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;font-family:\'Segoe UI\',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#ecfdf5 0%,#d1fae5 100%);">' +
+    '<table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 16px;"><tr><td align="center">' +
+    '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:420px;background:#ffffff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.08);overflow:hidden;border:1px solid rgba(0,0,0,0.04);">' +
+    '<tr><td style="background:linear-gradient(135deg,#059669 0%,#047857 100%);padding:28px 24px;text-align:center;">' +
+    '<h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:600;letter-spacing:-0.5px;">Men&uacute; del d&iacute;a</h1>' +
+    '<p style="margin:8px 0 0;color:rgba(255,255,255,0.95);font-size:15px;">' + dl + ' &middot; resumen para proveedor</p>' +
+    '</td></tr>' +
+    '<tr><td style="padding:28px 24px;">' +
+    '<p style="margin:0 0 16px;color:#1e293b;font-size:16px;line-height:1.5;">PDF solo con pedidos y cantidades de <strong>' + dl + '</strong> (fecha Argentina).</p>' +
+    '<p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">Semana: ' + (weekKey || '') + '</p>' +
+    '<p style="margin:0 0 20px;text-align:center;">' +
+    '<a href="' + pdfUrl + '" style="display:inline-block;padding:14px 32px;background:#059669;color:#ffffff!important;text-decoration:none;font-size:16px;font-weight:600;border-radius:10px;box-shadow:0 4px 14px rgba(5,150,105,0.4);">Ver PDF</a>' +
+    '</p>' +
+    '<p style="margin:0;color:#64748b;font-size:13px;text-align:center;">O copi&aacute; este enlace: <a href="' + pdfUrl + '" style="color:#059669;word-break:break-all;">' + pdfUrl + '</a></p>' +
+    '</td></tr>' +
+    '<tr><td style="padding:16px 24px;background:#ecfdf5;border-top:1px solid #a7f3d0;">' +
+    '<p style="margin:0;color:#047857;font-size:12px;">RRHH &middot; Organizaci&oacute;n de Almuerzos</p>' +
+    '</td></tr></table></td></tr></table></body></html>';
+}
+
 // ENVÍA UN MAIL A CADA USUARIO CON SU LINK PERSONALIZADO (incluye turno)
 function enviarLinksMenuSemanal() {
   const sheet = obtenerHojaUsuarios();
@@ -526,6 +548,9 @@ function handleAdminAction(data) {
     if (action === 'admin_pdf_gmail') {
       return adminPdfGmail(data.weekKey);
     }
+    if (action === 'admin_pdf_gmail_dia') {
+      return adminPdfGmailDia(data.weekKey);
+    }
     if (action === 'admin_send_reminder') {
       return adminSendReminder(data.weekKey, data.emails);
     }
@@ -742,53 +767,20 @@ function adminSendOpening() {
 // Genera PDF del resumen y devuelve URL de Gmail para enviarlo
 function adminPdfGmail(weekKey) {
   try {
-    var sheet = obtenerHojaRespuestas();
-    if (!sheet) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder al spreadsheet' })).setMimeType(ContentService.MimeType.JSON);
-    var lastRow = sheet.getLastRow();
-    if (lastRow < 2) {
-      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin datos para la semana' })).setMimeType(ContentService.MimeType.JSON);
-    }
     var wk = normalizarSemana(weekKey || '');
-    var datos = sheet.getRange(2, 1, lastRow, Math.max(sheet.getLastColumn(), 12)).getValues();
-    var filtrados = datos.filter(function(row) {
-      if (wk && normalizarSemana(row[0]) !== wk) return false;
-      return (row[10] || '').toString().toLowerCase() !== 'anulado';
-    });
+    var pack = obtenerFiltradosOrdenadosParaPdf_(wk);
+    if (!pack) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder al spreadsheet' })).setMimeType(ContentService.MimeType.JSON);
+    var filtrados = pack.filtrados;
     if (filtrados.length === 0) {
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin respuestas para esta semana' })).setMimeType(ContentService.MimeType.JSON);
     }
-    // Deduplicar: solo último por usuario+semana (igual que adminList)
-    filtrados.reverse();
-    var seenPdf = {};
-    filtrados = filtrados.filter(function(row) {
-      var key = ((row[3] || '').toString().toLowerCase() || (row[1] || '')) + '|' + normalizarSemana(row[0]);
-      if (seenPdf[key]) return false;
-      seenPdf[key] = true;
-      return true;
-    });
-    // Ordenar por turno (1 primero, 2 después) y luego por apellido (última palabra del nombre)
-    function apellido(nombre) {
-      var s = (nombre || '').toString().trim();
-      var parts = s.split(/\s+/);
-      return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : s.toLowerCase();
-    }
-    filtrados.sort(function(a, b) {
-      var t1 = String(a[4] || '').indexOf('2') !== -1 ? 2 : 1;
-      var t2 = String(b[4] || '').indexOf('2') !== -1 ? 2 : 1;
-      if (t1 !== t2) return t1 - t2;
-      return apellido(a[2]).localeCompare(apellido(b[2]));
-    });
     var ssNew = SpreadsheetApp.create('Resumen Menus ' + (wk || 'semana'));
     var hoja = ssNew.getSheets()[0];
     hoja.setName('Resumen');
-    function soloTurno(val) {
-      var s = String(val || '').trim();
-      if (s.indexOf('2') !== -1) return '2';
-      return '1';
-    }
     var filas = [['Usuario', 'Turno', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Detalle']];
     var contadorMenus = {};
     var contadorPorDia = [{}, {}, {}, {}, {}];
+    var dayLabels = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
     filtrados.forEach(function(row) {
       var det = {};
       try { var dStr = (row[11] || '').toString(); if (dStr) det = JSON.parse(dStr); } catch (e) {}
@@ -804,45 +796,48 @@ function adminPdfGmail(weekKey) {
       });
       filas.push([
         (row[2] || '').toString(),
-        soloTurno(row[4]),
+        soloTurnoPdf_(row[4]),
         m5, m6, m7, m8, m9,
         detStr.join(' | ') || ''
       ]);
     });
-    // Resumen por día (sin resumen semanal): una fila por menú + fila TOTAL viandas por día
+    filas.push(['', '', '', '', '', '', '', '']);
+    filas.push(['', '', '', '', '', '', '', '']);
+    filas.push(['RESUMEN POR DÍA', '', '', '', '', '', '', '']);
     filas.push(['', '', '', '', '', '', '', '']);
     var menuOrden = ['Menu 1', 'Menu 2', 'Menu 3', 'Menu 4', 'Menu 5', 'REMOTO', 'SIN VIANDA'];
     var otros = Object.keys(contadorMenus).filter(function(k) { return menuOrden.indexOf(k) === -1; });
-    filas.push(['RESUMEN POR DÍA', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', '', '']);
-    menuOrden.concat(otros).forEach(function(m) {
-      var tieneAlgo = false;
-      var row = [m];
-      for (var d = 0; d < 5; d++) {
+    var ordenTodos = menuOrden.concat(otros.slice().sort());
+    for (var d = 0; d < 5; d++) {
+      filas.push([dayLabels[d], '', '', '', '', '', '', '']);
+      ordenTodos.forEach(function(m) {
         var c = contadorPorDia[d][m] || 0;
-        row.push(c > 0 ? c : '');
-        if (c > 0) tieneAlgo = true;
-      }
-      row.push('', '');
-      if (tieneAlgo) filas.push(row);
-    });
-    // Total de viandas por día (suma de todos los menús ese día)
-    var totalPorDia = [0, 0, 0, 0, 0];
-    for (var td = 0; td < 5; td++) {
-      var keysD = Object.keys(contadorPorDia[td]);
+        if (c > 0) filas.push(['', m, c, '', '', '', '', '']);
+      });
+      var totalDia = 0;
+      var keysD = Object.keys(contadorPorDia[d]);
       for (var tk = 0; tk < keysD.length; tk++) {
-        totalPorDia[td] += contadorPorDia[td][keysD[tk]] || 0;
+        totalDia += contadorPorDia[d][keysD[tk]] || 0;
       }
+      filas.push(['', 'TOTAL ' + dayLabels[d], totalDia, '', '', '', '', '']);
+      if (d < 4) filas.push(['', '', '', '', '', '', '', '']);
     }
-    filas.push(['TOTAL VIANDAS', totalPorDia[0], totalPorDia[1], totalPorDia[2], totalPorDia[3], totalPorDia[4], '', '']);
     hoja.getRange(1, 1, filas.length, 8).setValues(filas);
     hoja.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#1e3a5f').setFontColor('#ffffff');
-    for (var r = 2; r <= filtrados.length + 1; r++) {
+    var nUser = filtrados.length;
+    for (var r = 2; r <= nUser + 1; r++) {
       hoja.getRange(r, 1, 1, 8).setBackground(r % 2 === 0 ? '#f8fafc' : '#ffffff');
     }
+    var dayLabelsPdf = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
     for (var ri = 0; ri < filas.length; ri++) {
-      var lbl = (filas[ri][0] || '').toString();
-      if (lbl.indexOf('RESUMEN') !== -1 || lbl.indexOf('TOTAL VIANDAS') !== -1) {
+      var a = (filas[ri][0] || '').toString();
+      var b = (filas[ri][1] || '').toString();
+      if (a.indexOf('RESUMEN POR') !== -1) {
         hoja.getRange(ri + 1, 1, 1, 8).setFontWeight('bold').setBackground('#e2e8f0');
+      } else if (dayLabelsPdf.indexOf(a) >= 0 && !b) {
+        hoja.getRange(ri + 1, 1, 1, 8).setFontWeight('bold').setBackground('#f1f5f9');
+      } else if (b.indexOf('TOTAL ') === 0) {
+        hoja.getRange(ri + 1, 1, 1, 8).setFontWeight('bold');
       }
     }
     hoja.autoResizeColumns(1, 8);
@@ -864,6 +859,102 @@ function adminPdfGmail(weekKey) {
     return ContentService.createTextOutput(JSON.stringify({ ok: true, gmailUrl: gmailUrl, pdfUrl: pdfUrl })).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
     Logger.log('adminPdfGmail: ' + e);
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function adminPdfGmailDia(weekKey) {
+  try {
+    var wk = normalizarSemana(weekKey || '');
+    var dayIdx = argentinaMenuDayIndex_();
+    if (dayIdx === null) {
+      return ContentService.createTextOutput(JSON.stringify({
+        ok: false,
+        error: 'Hoy es fin de semana. El PDF del d\u00eda solo aplica de lunes a viernes (Argentina).'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    var pack = obtenerFiltradosOrdenadosParaPdf_(wk);
+    if (!pack) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder al spreadsheet' })).setMimeType(ContentService.MimeType.JSON);
+    var filtrados = pack.filtrados;
+    if (filtrados.length === 0) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Sin respuestas para esta semana' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    var dayLabels = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
+    var dayLabel = dayLabels[dayIdx];
+    var ssNew = SpreadsheetApp.create('Menus ' + dayLabel + ' ' + wk);
+    var hoja = ssNew.getSheets()[0];
+    hoja.setName('Resumen dia');
+    var filas = [];
+    filas.push(['Pedidos ' + dayLabel + ' - semana ' + wk, '', '', '', '', '', '', '']);
+    filas.push(['Usuario', 'Turno', 'Eleccion ' + dayLabel, 'Detalle', '', '', '', '']);
+    var contadorDia = {};
+    filtrados.forEach(function(row) {
+      var det = {};
+      try { var dStr = (row[11] || '').toString(); if (dStr) det = JSON.parse(dStr); } catch (e) {}
+      var cell = row[5 + dayIdx];
+      var m = extraerNumeroMenu(String(cell || ''));
+      if (m) contadorDia[m] = (contadorDia[m] || 0) + 1;
+      var detTxt = (det[dayIdx] != null ? det[dayIdx] : det[String(dayIdx)] || '').toString();
+      filas.push([
+        (row[2] || '').toString(),
+        soloTurnoPdf_(row[4]),
+        String(cell || ''),
+        detTxt,
+        '', '', '', ''
+      ]);
+    });
+    var menuOrden = ['Menu 1', 'Menu 2', 'Menu 3', 'Menu 4', 'Menu 5', 'REMOTO', 'SIN VIANDA'];
+    var otrosList = Object.keys(contadorDia).filter(function(k) { return menuOrden.indexOf(k) === -1; });
+    filas.push(['', '', '', '', '', '', '', '']);
+    filas.push(['', '', '', '', '', '', '', '']);
+    filas.push(['RESUMEN ' + dayLabel, '', '', '', '', '', '', '']);
+    filas.push(['', '', '', '', '', '', '', '']);
+    var sumTotal = 0;
+    menuOrden.concat(otrosList.slice().sort()).forEach(function(m) {
+      var c = contadorDia[m] || 0;
+      if (c > 0) {
+        filas.push(['', m, c, '', '', '', '', '']);
+        sumTotal += c;
+      }
+    });
+    filas.push(['', 'TOTAL ' + dayLabel, sumTotal, '', '', '', '', '']);
+    hoja.getRange(1, 1, filas.length, 8).setValues(filas);
+    hoja.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#1e3a5f').setFontColor('#ffffff');
+    hoja.getRange(2, 1, 1, 8).setFontWeight('bold').setBackground('#e2e8f0');
+    var nPed = filtrados.length;
+    for (var r = 3; r <= nPed + 2; r++) {
+      hoja.getRange(r, 1, 1, 8).setBackground(r % 2 === 0 ? '#f8fafc' : '#ffffff');
+    }
+    for (var ri = 0; ri < filas.length; ri++) {
+      var a = (filas[ri][0] || '').toString();
+      var b = (filas[ri][1] || '').toString();
+      if (ri > 0 && a.indexOf('RESUMEN') !== -1) {
+        hoja.getRange(ri + 1, 1, 1, 8).setFontWeight('bold').setBackground('#e2e8f0');
+      } else if (b.indexOf('TOTAL ') === 0) {
+        hoja.getRange(ri + 1, 1, 1, 8).setFontWeight('bold');
+      }
+    }
+    hoja.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#1e3a5f').setFontColor('#ffffff');
+    hoja.getRange(2, 1, 1, 8).setFontWeight('bold').setBackground('#e2e8f0');
+    hoja.autoResizeColumns(1, 8);
+    SpreadsheetApp.flush();
+    var pdfBlob = ssNew.getAs('application/pdf');
+    var folder = DriveApp.getFolderById(CARPETA_DRIVE_COCINA_ID);
+    var pdfFile = folder.createFile(pdfBlob.setName('Menus ' + dayLabel + ' ' + (wk || 'semana') + '.pdf'));
+    DriveApp.getRootFolder().removeFile(DriveApp.getFileById(ssNew.getId()));
+    var pdfUrl = pdfFile.getUrl();
+    var subject = 'Men\u00fa d\u00eda (' + dayLabel + ') - ' + (wk || 'semana');
+    var htmlBody = crearHtmlMailProveedorDia(pdfUrl, wk || 'semana', dayLabel);
+    var bodyPlain = 'Resumen de men\u00fas para ' + dayLabel + ' (semana ' + (wk || '') + ').\n\nVer PDF: ' + pdfUrl;
+    try {
+      MailApp.sendEmail(COCINA_EMAIL, subject, bodyPlain, { htmlBody: htmlBody });
+    } catch (mailErr) {
+      Logger.log('Mail proveedor d\u00eda: ' + mailErr);
+    }
+    var gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(bodyPlain);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, gmailUrl: gmailUrl, pdfUrl: pdfUrl, dayLabel: dayLabel })).setMimeType(ContentService.MimeType.JSON);
+  } catch (e) {
+    Logger.log('adminPdfGmailDia: ' + e);
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON);
   }
 }
@@ -953,6 +1044,53 @@ function extraerNumeroMenu(celda) {
   if (/REMOTO/i.test(celda)) return 'REMOTO';
   if (/SIN VIANDA/i.test(celda)) return 'SIN VIANDA';
   return String(celda).slice(0, 30);
+}
+
+function soloTurnoPdf_(val) {
+  var s = String(val || '').trim();
+  if (s.indexOf('2') !== -1) return '2';
+  return '1';
+}
+
+/** 0=Lunes ... 4=Viernes, null = s\u00e1bado/domingo (Argentina). u: 1=lunes..7=domingo */
+function argentinaMenuDayIndex_() {
+  var tz = 'America/Argentina/Buenos_Aires';
+  var u = parseInt(Utilities.formatDate(new Date(), tz, 'u'), 10);
+  if (u >= 6) return null;
+  return u - 1;
+}
+
+function obtenerFiltradosOrdenadosParaPdf_(wk) {
+  var sheet = obtenerHojaRespuestas();
+  if (!sheet) return null;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { sheet: sheet, filtrados: [] };
+  var wkNorm = normalizarSemana(wk || '');
+  var datos = sheet.getRange(2, 1, lastRow, Math.max(sheet.getLastColumn(), 12)).getValues();
+  var filtrados = datos.filter(function(row) {
+    if (wkNorm && normalizarSemana(row[0]) !== wkNorm) return false;
+    return (row[10] || '').toString().toLowerCase() !== 'anulado';
+  });
+  filtrados.reverse();
+  var seenPdf = {};
+  filtrados = filtrados.filter(function(row) {
+    var key = ((row[3] || '').toString().toLowerCase() || (row[1] || '')) + '|' + normalizarSemana(row[0]);
+    if (seenPdf[key]) return false;
+    seenPdf[key] = true;
+    return true;
+  });
+  function apellido(nombre) {
+    var s = (nombre || '').toString().trim();
+    var parts = s.split(/\s+/);
+    return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : s.toLowerCase();
+  }
+  filtrados.sort(function(a, b) {
+    var t1 = String(a[4] || '').indexOf('2') !== -1 ? 2 : 1;
+    var t2 = String(b[4] || '').indexOf('2') !== -1 ? 2 : 1;
+    if (t1 !== t2) return t1 - t2;
+    return apellido(a[2]).localeCompare(apellido(b[2]));
+  });
+  return { sheet: sheet, filtrados: filtrados };
 }
 
 // --- Informe para cocina: crear archivo en Drive + email (ejecutar lunes 9:00 Argentina) ---
