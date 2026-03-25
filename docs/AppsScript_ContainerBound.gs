@@ -1,4 +1,4 @@
-// CONFIGURACIÓN BÁSICA
+﻿// CONFIGURACIÓN BÁSICA
 // IMPORTANTE: Usar la URL de PRODUCCIÓN de Vercel (la que se actualiza con cada push), no una URL de deployment/preview.
 // En Vercel: proyecto → Settings → Domains → la que sea tipo "tu-proyecto.vercel.app"
 const APP_BASE_URL = 'https://proyecto-almuerzo.vercel.app';
@@ -9,7 +9,7 @@ const HOJA_CONFIG = 'Config';
 const COCINA_EMAIL = 'juan.billiot@sommiercenter.com'; // Email de la gente de viandas/cocina (confirmar)
 const ADMIN_SECRET = 'Admin.2026'; // Contraseña admin
 // Spreadsheet con la lista de usuarios. Vacío = spreadsheet activo.
-const USUARIOS_SPREADSHEET_ID = '1l9E5kuJVmUrei6PLUnBdwpGoGvTDSRIH0k0GapdfZyk';
+const USUARIOS_SPREADSHEET_ID = '';  // VACIO = script DENTRO del spreadsheet
 // GID de la hoja de usuarios (número en la URL #gid=). 0 = detectar automático.
 const USUARIOS_SHEET_GID = 877468020;
 
