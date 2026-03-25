@@ -3,7 +3,17 @@
 // En Vercel: proyecto → Settings → Domains → la que sea tipo "tu-proyecto.vercel.app"
 const APP_BASE_URL = 'https://proyecto-almuerzo.vercel.app';
 const SHEET_NAME = 'usuarios_completos'; // Hoja con A=email, B=nombre, C=token, D=turno
-const CARPETA_DRIVE_COCINA_ID = '1tiH7zZ8yZHWbiDD8e64basLJPAfxrrHm'; // Carpeta donde se genera el archivo para cocina
+const CARPETA_DRIVE_COCINA_ID = '1tiH7zZ8yZHWbiDD8e64basLJPAfxrrHm'; // Carpeta raíz del proyecto en Drive (Menu Semanal App)
+/** Nombre de la subcarpeta donde se guardan PDFs e informes de menú (evita mezclar con otros archivos de la raíz). */
+const MENUES_PDF_SUBCARPETA_NOMBRE = 'Menues pdf';
+
+/** Carpeta "Menues pdf" dentro de CARPETA_DRIVE_COCINA_ID; la crea si aún no existe. */
+function obtenerCarpetaMenuesPdf_() {
+  var parent = DriveApp.getFolderById(CARPETA_DRIVE_COCINA_ID);
+  var it = parent.getFoldersByName(MENUES_PDF_SUBCARPETA_NOMBRE);
+  if (it.hasNext()) return it.next();
+  return parent.createFolder(MENUES_PDF_SUBCARPETA_NOMBRE);
+}
 const HOJA_RESPUESTAS = 'Respuestas';
 const HOJA_CONFIG = 'Config';
 const COCINA_EMAIL = 'juan.billiot@sommiercenter.com'; // Email de la gente de viandas/cocina (confirmar)
@@ -839,7 +849,7 @@ function adminPdfGmail(weekKey) {
     hoja.autoResizeColumns(1, 8);
     SpreadsheetApp.flush();
     var pdfBlob = ssNew.getAs('application/pdf');
-    var folder = DriveApp.getFolderById(CARPETA_DRIVE_COCINA_ID);
+    var folder = obtenerCarpetaMenuesPdf_();
     var pdfFile = folder.createFile(pdfBlob.setName('Menus ' + (wk || 'semana') + '.pdf'));
     DriveApp.getRootFolder().removeFile(DriveApp.getFileById(ssNew.getId()));
     var pdfUrl = pdfFile.getUrl();
@@ -935,7 +945,7 @@ function adminPdfGmailDia(weekKey) {
     hoja.autoResizeColumns(1, 8);
     SpreadsheetApp.flush();
     var pdfBlob = ssNew.getAs('application/pdf');
-    var folder = DriveApp.getFolderById(CARPETA_DRIVE_COCINA_ID);
+    var folder = obtenerCarpetaMenuesPdf_();
     var pdfFile = folder.createFile(pdfBlob.setName('Menus ' + dayLabel + ' ' + (wk || 'semana') + '.pdf'));
     DriveApp.getRootFolder().removeFile(DriveApp.getFileById(ssNew.getId()));
     var pdfUrl = pdfFile.getUrl();
@@ -1173,7 +1183,7 @@ function generarInformeSemanal() {
     hoja.getRange(1, 1, filas.length, 8).setValues(filas);
     hoja.getRange(1, 1, 2, 8).setFontWeight('bold');
   }
-  var folder = DriveApp.getFolderById(CARPETA_DRIVE_COCINA_ID);
+  var folder = obtenerCarpetaMenuesPdf_();
   var file = DriveApp.getFileById(ssNew.getId());
   folder.addFile(file);
   DriveApp.getRootFolder().removeFile(file);
