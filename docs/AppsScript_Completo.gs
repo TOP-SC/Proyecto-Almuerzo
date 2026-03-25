@@ -780,7 +780,6 @@ function adminPdfGmail(weekKey) {
     var filas = [['Usuario', 'Turno', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Detalle']];
     var contadorMenus = {};
     var contadorPorDia = [{}, {}, {}, {}, {}];
-    var dayLabels = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
     filtrados.forEach(function(row) {
       var det = {};
       try { var dStr = (row[11] || '').toString(); if (dStr) det = JSON.parse(dStr); } catch (e) {}
@@ -802,42 +801,39 @@ function adminPdfGmail(weekKey) {
       ]);
     });
     filas.push(['', '', '', '', '', '', '', '']);
-    filas.push(['', '', '', '', '', '', '', '']);
-    filas.push(['RESUMEN POR DÍA', '', '', '', '', '', '', '']);
-    filas.push(['', '', '', '', '', '', '', '']);
     var menuOrden = ['Menu 1', 'Menu 2', 'Menu 3', 'Menu 4', 'Menu 5', 'REMOTO', 'SIN VIANDA'];
     var otros = Object.keys(contadorMenus).filter(function(k) { return menuOrden.indexOf(k) === -1; });
-    var ordenTodos = menuOrden.concat(otros.slice().sort());
-    for (var d = 0; d < 5; d++) {
-      filas.push([dayLabels[d], '', '', '', '', '', '', '']);
-      ordenTodos.forEach(function(m) {
+    // Celda vacía entre "RESUMEN POR DÍA" y "Lunes" para alinear Lunes..Viernes con la tabla de arriba
+    filas.push(['RESUMEN POR DÍA', '', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', '']);
+    menuOrden.concat(otros).forEach(function(m) {
+      var tieneAlgo = false;
+      var row = [m, ''];
+      for (var d = 0; d < 5; d++) {
         var c = contadorPorDia[d][m] || 0;
-        if (c > 0) filas.push(['', m, c, '', '', '', '', '']);
-      });
-      var totalDia = 0;
-      var keysD = Object.keys(contadorPorDia[d]);
-      for (var tk = 0; tk < keysD.length; tk++) {
-        totalDia += contadorPorDia[d][keysD[tk]] || 0;
+        row.push(c > 0 ? c : '');
+        if (c > 0) tieneAlgo = true;
       }
-      filas.push(['', 'TOTAL ' + dayLabels[d], totalDia, '', '', '', '', '']);
-      if (d < 4) filas.push(['', '', '', '', '', '', '', '']);
+      row.push('');
+      if (tieneAlgo) filas.push(row);
+    });
+    var totalPorDia = [0, 0, 0, 0, 0];
+    for (var td = 0; td < 5; td++) {
+      var keysD = Object.keys(contadorPorDia[td]);
+      for (var tk = 0; tk < keysD.length; tk++) {
+        totalPorDia[td] += contadorPorDia[td][keysD[tk]] || 0;
+      }
     }
+    filas.push(['TOTAL VIANDAS', '', totalPorDia[0], totalPorDia[1], totalPorDia[2], totalPorDia[3], totalPorDia[4], '']);
     hoja.getRange(1, 1, filas.length, 8).setValues(filas);
     hoja.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#1e3a5f').setFontColor('#ffffff');
     var nUser = filtrados.length;
     for (var r = 2; r <= nUser + 1; r++) {
       hoja.getRange(r, 1, 1, 8).setBackground(r % 2 === 0 ? '#f8fafc' : '#ffffff');
     }
-    var dayLabelsPdf = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'];
     for (var ri = 0; ri < filas.length; ri++) {
-      var a = (filas[ri][0] || '').toString();
-      var b = (filas[ri][1] || '').toString();
-      if (a.indexOf('RESUMEN POR') !== -1) {
+      var lbl = (filas[ri][0] || '').toString();
+      if (lbl.indexOf('RESUMEN') !== -1 || lbl.indexOf('TOTAL VIANDAS') !== -1) {
         hoja.getRange(ri + 1, 1, 1, 8).setFontWeight('bold').setBackground('#e2e8f0');
-      } else if (dayLabelsPdf.indexOf(a) >= 0 && !b) {
-        hoja.getRange(ri + 1, 1, 1, 8).setFontWeight('bold').setBackground('#f1f5f9');
-      } else if (b.indexOf('TOTAL ') === 0) {
-        hoja.getRange(ri + 1, 1, 1, 8).setFontWeight('bold');
       }
     }
     hoja.autoResizeColumns(1, 8);
