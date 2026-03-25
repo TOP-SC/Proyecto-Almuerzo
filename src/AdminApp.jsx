@@ -47,6 +47,15 @@ function parseMenuStr(str) {
 
 const COLORS = ['#1a73e8', '#34a853', '#fbbc04', '#ea4335', '#8b5cf6', '#06b6d4', '#94a3b8'];
 
+/** Misma marca que el menú principal (App.jsx) */
+function DeptWatermark() {
+  return (
+    <div className="fixed bottom-4 right-4 text-slate-500 text-sm font-medium pointer-events-none select-none z-50">
+      Create by Proyectos y Transformación Operativa
+    </div>
+  );
+}
+
 function AdminApp() {
   const [isAuth, setIsAuth] = useState(false);
   const [password, setPassword] = useState('');
@@ -491,29 +500,32 @@ function AdminApp() {
 
   if (!isAuth) {
     return (
-      <div className="min-h-screen app-bg flex items-center justify-center p-6" style={{ background: '#f5f5f5' }}>
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-sm w-full">
-          <div className="flex items-center gap-3 mb-6">
-            <Shield className="w-10 h-10" style={{ color: '#1a73e8' }} />
-            <h1 className="text-xl font-semibold text-slate-800">Admin - Menú Semanal</h1>
+      <>
+        <div className="min-h-screen app-bg flex items-center justify-center p-6" style={{ background: '#f5f5f5' }}>
+          <div className="bg-white rounded-xl shadow-lg p-8 max-w-sm w-full">
+            <div className="flex items-center gap-3 mb-6">
+              <Shield className="w-10 h-10" style={{ color: '#1a73e8' }} />
+              <h1 className="text-xl font-semibold text-slate-800">Admin - Menú Semanal</h1>
+            </div>
+            <form onSubmit={handleLogin}>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Contraseña"
+                className="w-full px-4 py-3 border border-slate-200 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+              />
+              {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+              <button type="submit" className="w-full py-3 rounded-lg font-medium text-white" style={{ background: '#1a73e8' }}>
+                Entrar
+              </button>
+            </form>
+            <a href="/" className="block mt-4 text-center text-sm text-slate-500 hover:text-slate-700">Volver al menú</a>
           </div>
-          <form onSubmit={handleLogin}>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Contraseña"
-              className="w-full px-4 py-3 border border-slate-200 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              autoFocus
-            />
-            {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-            <button type="submit" className="w-full py-3 rounded-lg font-medium text-white" style={{ background: '#1a73e8' }}>
-              Entrar
-            </button>
-          </form>
-          <a href="/" className="block mt-4 text-center text-sm text-slate-500 hover:text-slate-700">Volver al menú</a>
         </div>
-      </div>
+        <DeptWatermark />
+      </>
     );
   }
 
@@ -526,6 +538,7 @@ function AdminApp() {
   ];
 
   return (
+    <>
     <div className="min-h-screen flex bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       <aside className="w-52 flex-shrink-0 bg-white/90 backdrop-blur-sm border-r border-slate-200/80 shadow-sm flex flex-col">
         <div className="p-4 border-b border-slate-100">
@@ -673,6 +686,8 @@ function AdminApp() {
         </div>
       </main>
     </div>
+    <DeptWatermark />
+    </>
   );
 }
 
