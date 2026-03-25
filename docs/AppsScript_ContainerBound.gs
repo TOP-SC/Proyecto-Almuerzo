@@ -20,8 +20,9 @@ const COCINA_EMAIL = 'juan.billiot@sommiercenter.com'; // Email de la gente de v
 const ADMIN_SECRET = 'Admin.2026'; // Contraseña admin
 // Spreadsheet con la lista de usuarios. Vacío = intenta spreadsheet activo + propiedad SPREADSHEET_ID.
 const USUARIOS_SPREADSHEET_ID = '';  // Opcional: pegá el ID de la URL del Sheet. Vacío = contenedor o propiedad.
-// GID de la hoja de usuarios (número en la URL #gid=). 0 = detectar automático.
-const USUARIOS_SHEET_GID = 877468020;
+// GID de la hoja de usuarios (#gid= en la URL). 0 = no usar GID (recomendado: se usa el nombre usuarios_completos).
+// Si un GID viejo apunta a otra pestaña, la lista de empresa sale vacía aunque usuarios_completos esté llena.
+const USUARIOS_SHEET_GID = 0;
 
 function generateToken_() {
   return Utilities.getUuid();
@@ -47,6 +48,9 @@ function obtenerHojaUsuarios() {
       }
     }
   } catch (e) {}
+  // Nombre explícito primero: evita GID desactualizado apuntando a otra pestaña vacía
+  var sheetByName = ssConst.getSheetByName(SHEET_NAME);
+  if (sheetByName) return sheetByName;
   if (USUARIOS_SHEET_GID && USUARIOS_SHEET_GID > 0) {
     var sheets = ssConst.getSheets();
     for (var g = 0; g < sheets.length; g++) {
@@ -61,8 +65,6 @@ function obtenerHojaUsuarios() {
       }
     }
   }
-  var sheet = ssConst.getSheetByName(SHEET_NAME);
-  if (sheet) return sheet;
   var sheets = ssConst.getSheets();
   for (var i = 0; i < sheets.length; i++) {
     var name = (sheets[i].getName() || '').toString();

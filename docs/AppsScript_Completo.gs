@@ -20,8 +20,8 @@ const COCINA_EMAIL = 'juan.billiot@sommiercenter.com'; // Email de la gente de v
 const ADMIN_SECRET = 'Admin.2026'; // Contraseña admin
 // Spreadsheet con la lista de usuarios. Vacío = spreadsheet activo.
 const USUARIOS_SPREADSHEET_ID = '1l9E5kuJVmUrei6PLUnBdwpGoGvTDSRIH0k0GapdfZyk';
-// GID de la hoja de usuarios (número en la URL #gid=). 0 = detectar automático.
-const USUARIOS_SHEET_GID = 877468020;
+// GID (#gid=). 0 = no usar; el nombre usuarios_completos tiene prioridad (evita GID viejo = pestaña vacía).
+const USUARIOS_SHEET_GID = 0;
 
 function generateToken_() {
   return Utilities.getUuid();
@@ -47,6 +47,8 @@ function obtenerHojaUsuarios() {
       }
     }
   } catch (e) {}
+  var sheetByName = ssConst.getSheetByName(SHEET_NAME);
+  if (sheetByName) return sheetByName;
   if (USUARIOS_SHEET_GID && USUARIOS_SHEET_GID > 0) {
     var sheets = ssConst.getSheets();
     for (var g = 0; g < sheets.length; g++) {
@@ -61,8 +63,6 @@ function obtenerHojaUsuarios() {
       }
     }
   }
-  var sheet = ssConst.getSheetByName(SHEET_NAME);
-  if (sheet) return sheet;
   var sheets = ssConst.getSheets();
   for (var i = 0; i < sheets.length; i++) {
     var name = (sheets[i].getName() || '').toString();
