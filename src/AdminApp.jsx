@@ -907,7 +907,7 @@ function DashboardView({ menuChartData, confirmChartData, handleSendOpening, han
           <h3 className="font-semibold text-slate-700 mb-4 text-sm">Menús elegidos</h3>
           {menuChartData.length > 0 ? (
             <div className="h-64 min-h-[200px]" style={{ minWidth: 0 }}>
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+              <ResponsiveContainer width="100%" height={256} minWidth={0}>
                 <RechartsPie>
                   <Pie data={menuChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} innerRadius={45} paddingAngle={2} label={false}>
                     {menuChartData.map((_, i) => (
@@ -929,7 +929,7 @@ function DashboardView({ menuChartData, confirmChartData, handleSendOpening, han
           <h3 className="font-semibold text-slate-700 mb-4 text-sm">Confirmó / No confirmó</h3>
           {confirmChartData.some(d => d.value > 0) ? (
             <div className="h-64 min-h-[200px]" style={{ minWidth: 0 }}>
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+              <ResponsiveContainer width="100%" height={256} minWidth={0}>
                 <RechartsPie>
                   <Pie data={confirmChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} innerRadius={45} paddingAngle={2} label={false}>
                     {confirmChartData.map((e, i) => (

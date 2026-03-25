@@ -1,4 +1,4 @@
-﻿// CONFIGURACIÓN BÁSICA
+// CONFIGURACIÓN BÁSICA
 // IMPORTANTE: Usar la URL de PRODUCCIÓN de Vercel (la que se actualiza con cada push), no una URL de deployment/preview.
 // En Vercel: proyecto → Settings → Domains → la que sea tipo "tu-proyecto.vercel.app"
 const APP_BASE_URL = 'https://proyecto-almuerzo.vercel.app';
@@ -350,7 +350,8 @@ function guardarRespuestaEnSheet(data) {
     }
   }
   if (rowIndex > 0) {
-    sheet.getRange(rowIndex, 1, rowIndex, 12).setValues([row]);
+    // Una fila x 12 columnas: getRange(fila, col, numFilas=1, numCols=12)
+    sheet.getRange(rowIndex, 1, 1, 12).setValues([row]);
   } else {
     sheet.appendRow(row);
   }
@@ -634,7 +635,8 @@ function adminUpdate(token, weekKey, selections, nombre, details) {
         var s = sel && typeof sel === 'object' ? ((sel.name || '') + ' - ' + (sel.dish || '')) : '';
         nuevos.push(s || '');
       }
-      sheet.getRange(2 + r, 6, 2 + r, 10).setValues([nuevos]);
+      // getRange(fila, columna, numFilas, numColumnas) — no usar filaFin/colFin
+      sheet.getRange(2 + r, 6, 1, 5).setValues([nuevos]);
       var detStr = (details && typeof details === 'object') ? JSON.stringify(details) : (row[11] || '');
       sheet.getRange(2 + r, 12).setValue(detStr);
       var det = {};
@@ -835,12 +837,12 @@ function adminPdfGmail(weekKey) {
     hoja.getRange(1, 1, filas.length, 8).setValues(filas);
     hoja.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#1e3a5f').setFontColor('#ffffff');
     for (var r = 2; r <= filtrados.length + 1; r++) {
-      hoja.getRange(r, 1, r, 8).setBackground(r % 2 === 0 ? '#f8fafc' : '#ffffff');
+      hoja.getRange(r, 1, 1, 8).setBackground(r % 2 === 0 ? '#f8fafc' : '#ffffff');
     }
     for (var ri = 0; ri < filas.length; ri++) {
       var lbl = (filas[ri][0] || '').toString();
       if (lbl.indexOf('RESUMEN') !== -1 || lbl.indexOf('TOTAL VIANDAS') !== -1) {
-        hoja.getRange(ri + 1, 1, ri + 1, 8).setFontWeight('bold').setBackground('#e2e8f0');
+        hoja.getRange(ri + 1, 1, 1, 8).setFontWeight('bold').setBackground('#e2e8f0');
       }
     }
     hoja.autoResizeColumns(1, 8);
