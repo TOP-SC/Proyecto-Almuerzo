@@ -62,7 +62,8 @@ function AdminApp() {
   const [adminSecret, setAdminSecret] = useState('');
   const [error, setError] = useState('');
   const [users, setUsers] = useState([]);
-  const [empresaUsers, setEmpresaUsers] = useState([]);
+  /** null = aún no hubo respuesta del Sheet; [] = cargó vacío o sin filas válidas */
+  const [empresaUsers, setEmpresaUsers] = useState(null);
   const [weeklyMenu, setWeeklyMenu] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -130,10 +131,14 @@ function AdminApp() {
         body: JSON.stringify({ action: 'admin_list_empresa', adminSecret }),
       });
       const data = await res.json().catch(() => ({}));
-      if (data.ok && data.users) {
+      if (data.ok && Array.isArray(data.users)) {
         setEmpresaUsers(data.users);
+      } else {
+        setEmpresaUsers([]);
       }
-    } catch (_) {}
+    } catch (_) {
+      setEmpresaUsers([]);
+    }
   };
 
   const handleLogin = (e) => {
@@ -484,7 +489,7 @@ function AdminApp() {
     }).reverse();
   })();
   const usersWhoOrdered = usersThisWeek.map(u => (u.email || '').toLowerCase()).filter(Boolean);
-  const empresaUsersEffective = (empresaUsers && empresaUsers.length > 0) ? empresaUsers : manualEmpresaUsers;
+  const empresaUsersEffective = (empresaUsers != null && empresaUsers.length > 0) ? empresaUsers : manualEmpresaUsers;
   const usersWhoNotOrdered = empresaUsersEffective.filter(e => {
     const em = (e.email || '').toLowerCase();
     return em && !usersWhoOrdered.includes(em);
@@ -713,6 +718,7 @@ function AdminApp() {
               usersThisWeek={usersThisWeek}
               onLoadManualUsers={setManualEmpresaUsers}
               empresaUsersFromApi={empresaUsers}
+              empresaListFetched={empresaUsers !== null}
             />
           )}
           {activeView === 'pendientes' && (
@@ -725,6 +731,7 @@ function AdminApp() {
               empresaUsers={empresaUsersEffective}
               onLoadManualUsers={setManualEmpresaUsers}
               empresaUsersFromApi={empresaUsers}
+              empresaListFetched={empresaUsers !== null}
             />
           )}
         </div>
@@ -749,7 +756,7 @@ function parsePastedUsers(text) {
   return out;
 }
 
-function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setShowAddForm, addForm, setAddForm, weeklyMenu, editingUser, setEditingUser, handleAdd, handleCancel, handleUpdate, actionLoading, lastDebug, empresaUsers, usersThisWeek, onLoadManualUsers, empresaUsersFromApi }) {
+function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setShowAddForm, addForm, setAddForm, weeklyMenu, editingUser, setEditingUser, handleAdd, handleCancel, handleUpdate, actionLoading, lastDebug, empresaUsers, usersThisWeek, onLoadManualUsers, empresaUsersFromApi, empresaListFetched }) {
   const [selectedUserLookup, setSelectedUserLookup] = useState('');
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [pasteText, setPasteText] = useState('');
@@ -771,10 +778,10 @@ function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setS
 
   return (
     <div className="max-w-4xl">
-      {empresaUsersFromApi && empresaUsersFromApi.length === 0 && (
+      {empresaListFetched && Array.isArray(empresaUsersFromApi) && empresaUsersFromApi.length === 0 && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3">
-          <span className="text-amber-800 text-sm">La lista de usuarios no se cargó desde el Sheet. Cargá la hoja <strong>usuarios_completos</strong> o pegá la lista manualmente.</span>
-          <button onClick={() => setShowPasteModal(true)} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700">Pegar lista</button>
+          <span className="text-amber-800 text-sm">No hay filas en la hoja de usuarios del Sheet (o no se detectaron emails). Revisá <strong>usuarios_completos</strong> (columna A=email) o pegá la lista manualmente.</span>
+          <button type="button" onClick={() => setShowPasteModal(true)} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700">Pegar lista</button>
         </div>
       )}
       {showPasteModal && (
@@ -1195,7 +1202,7 @@ function EmpresaView({ sommierUsers, btimeUsers }) {
   );
 }
 
-function PendientesView({ usersWhoNotOrdered, handleSendReminder, selectedReminderEmails, setSelectedReminderEmails, actionLoading, empresaUsers, onLoadManualUsers, empresaUsersFromApi }) {
+function PendientesView({ usersWhoNotOrdered, handleSendReminder, selectedReminderEmails, setSelectedReminderEmails, actionLoading, empresaUsers, onLoadManualUsers, empresaUsersFromApi, empresaListFetched }) {
   const [searchPendientes, setSearchPendientes] = useState('');
   const searchWords = (searchPendientes || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
   const filteredPendientes = usersWhoNotOrdered.filter(u => {
@@ -1227,9 +1234,9 @@ function PendientesView({ usersWhoNotOrdered, handleSendReminder, selectedRemind
 
   return (
     <div className="max-w-4xl">
-      {empresaUsersFromApi && empresaUsersFromApi.length === 0 && (
+      {empresaListFetched && Array.isArray(empresaUsersFromApi) && empresaUsersFromApi.length === 0 && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3">
-          <span className="text-amber-800 text-sm">La lista no se cargó desde el Sheet. Cargá <strong>usuarios_completos</strong> o usá "Pegar lista" en Listado pedidos.</span>
+          <span className="text-amber-800 text-sm">La hoja de usuarios está vacía o sin emails válidos. Cargá <strong>usuarios_completos</strong> o usá &quot;Pegar lista&quot; en Listado pedidos.</span>
         </div>
       )}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
@@ -1309,7 +1316,9 @@ function PendientesView({ usersWhoNotOrdered, handleSendReminder, selectedRemind
           ) : (
           <p className="text-slate-500 py-8 text-center">No hay coincidencias con &quot;{searchPendientes}&quot;.</p>
           )
-        ) : empresaUsers && empresaUsers.length === 0 ? (
+        ) : !empresaListFetched ? (
+          <p className="text-slate-500 py-8 text-center">Cargando lista de empresa desde el servidor…</p>
+        ) : empresaUsers.length === 0 ? (
           <p className="text-slate-500 py-8 text-center">Cargá la lista de empleados en la hoja <strong>usuarios_completos</strong> (A=email, B=nombre, C=token, D=turno) del Sheet.</p>
         ) : (
           <p className="text-slate-500 py-8 text-center">Todos ya pidieron.</p>
