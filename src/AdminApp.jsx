@@ -2,39 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Shield, LogOut, Search, XCircle, Edit2, UserPlus, Check, Loader2, LayoutDashboard, Users, Mail, FileText, PieChart, Send, Building2, Lock, Unlock } from 'lucide-react';
 import { DriveService } from './driveService.js';
 import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { getMenuWeek } from './menuWeekUtils.js';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/selection';
 const APP_BASE_URL = import.meta.env.VITE_APP_URL || 'https://proyecto-almuerzo.vercel.app';
-
-function getMenuWeek() {
-  const now = new Date();
-  let y, mo, d;
-  try {
-    const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit' });
-    const parts = formatter.formatToParts(now);
-    y = parseInt(parts.find(p => p.type === 'year').value, 10);
-    mo = parseInt(parts.find(p => p.type === 'month').value, 10);
-    d = parseInt(parts.find(p => p.type === 'day').value, 10);
-  } catch (_) {
-    y = now.getFullYear();
-    mo = now.getMonth() + 1;
-    d = now.getDate();
-  }
-  const dayOfWeek = new Date(y, mo - 1, d).getDay();
-  const daysToMonday = (8 - dayOfWeek) % 7;
-  const weekStart = new Date(y, mo - 1, d + daysToMonday);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 4);
-  const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  const d1 = weekStart.getDate();
-  const d2 = weekEnd.getDate();
-  const mes = meses[weekEnd.getMonth()];
-  const weekKeyStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
-  return {
-    label: `Semana del ${d1} al ${d2} de ${mes}`,
-    weekKey: weekKeyStr,
-  };
-}
 
 function parseMenuStr(str) {
   if (!str) return null;

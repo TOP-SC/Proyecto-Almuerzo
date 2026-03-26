@@ -1,6 +1,7 @@
 // PROCESADOR DE MENÚ SEMANAL DESDE TEXTO DE WHATSAPP
 
 import { Beef, Apple, Salad, Soup, Home, X } from 'lucide-react';
+import { getMenuWeekDayDatesDDMM } from './menuWeekUtils.js';
 
 export const processMenuText = (menuText) => {
   console.log('🔄 Procesando texto del menú...');
@@ -10,7 +11,7 @@ export const processMenuText = (menuText) => {
   
   // Estructura base para cada día
   const daysOfWeek = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-  const currentWeekDates = getCurrentWeekDates();
+  const currentWeekDates = getMenuWeekDayDatesDDMM();
   
   // Mapeo de menús con iconos correctos (importados directamente) y tolerancia a errores
   const menuTypes = {
@@ -200,26 +201,3 @@ function getMenuCategory(menuName) {
   return categories[menuName] || 'Diario';
 }
 
-// Obtener fechas de la semana actual
-function getCurrentWeekDates() {
-  const today = new Date();
-  const currentDay = today.getDay();
-  const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
-  const monday = new Date(today);
-  monday.setDate(today.getDate() + mondayOffset);
-  
-  const dates = [];
-  for (let i = 0; i < 5; i++) {
-    const date = new Date(monday);
-    date.setDate(monday.getDate() + i);
-    dates.push(formatDate(date));
-  }
-  
-  return dates;
-}
-
-function formatDate(date) {
-  const day = date.getDate().toString().padStart(2, '0');
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  return `${day}/${month}`;
-}
