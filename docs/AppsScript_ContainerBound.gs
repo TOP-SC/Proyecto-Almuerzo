@@ -892,6 +892,22 @@ function spreadsheetToXlsxBlob_(spreadsheetId) {
   return response.getBlob();
 }
 
+/**
+ * Guarda la planilla temporal dentro de la carpeta de menús y devuelve su URL.
+ * Evita exportaciones XLSX (UrlFetchApp) cuando el dominio no permite external_request.
+ */
+function moverPlanillaACarpetaMenues_(spreadsheetId, folder, newName) {
+  var file = DriveApp.getFileById(spreadsheetId);
+  if (newName) file.setName(newName);
+  folder.addFile(file);
+  try {
+    DriveApp.getRootFolder().removeFile(file);
+  } catch (e) {
+    Logger.log('moverPlanillaACarpetaMenues_ remove root: ' + e);
+  }
+  return file.getUrl();
+}
+
 // Genera Excel del resumen y devuelve URL de Gmail para enviarlo (usuarios: turno + orden alfabético vía obtenerFiltradosOrdenadosParaPdf_)
 function adminPdfGmail(weekKey) {
   try {
@@ -973,20 +989,17 @@ function adminPdfGmail(weekKey) {
     SpreadsheetApp.flush();
     var folder = obtenerCarpetaMenuesPdf_();
     var sid = ssNew.getId();
-    var excelBlob = spreadsheetToXlsxBlob_(sid);
-    var excelFile = folder.createFile(excelBlob.setName('Menus ' + (wk || 'semana') + '.xlsx'));
-    DriveApp.getRootFolder().removeFile(DriveApp.getFileById(sid));
-    var excelUrl = excelFile.getUrl();
+    var sheetUrl = moverPlanillaACarpetaMenues_(sid, folder, 'Menus ' + (wk || 'semana'));
     var subject = 'Men\u00fa semanal - ' + (wk || 'semana');
-    var htmlBody = crearHtmlMailProveedor(excelUrl, wk || 'semana');
-    var bodyPlain = 'Resumen de menús elegidos para la semana.\n\nDescargar Excel: ' + excelUrl;
+    var htmlBody = crearHtmlMailProveedor(sheetUrl, wk || 'semana');
+    var bodyPlain = 'Resumen de menús elegidos para la semana.\n\nAbrir planilla: ' + sheetUrl;
     try {
       MailApp.sendEmail(COCINA_EMAIL, subject, bodyPlain, { htmlBody: htmlBody });
     } catch (mailErr) {
       Logger.log('Mail proveedor: ' + mailErr);
     }
     var gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(bodyPlain);
-    return ContentService.createTextOutput(JSON.stringify({ ok: true, gmailUrl: gmailUrl, excelUrl: excelUrl, pdfUrl: excelUrl })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, gmailUrl: gmailUrl, excelUrl: sheetUrl, pdfUrl: sheetUrl, sheetUrl: sheetUrl })).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
     Logger.log('adminPdfGmail: ' + e);
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON);
@@ -1089,20 +1102,17 @@ function adminPdfGmailDia(weekKey, dayIndexParam) {
     SpreadsheetApp.flush();
     var folder = obtenerCarpetaMenuesPdf_();
     var sidD = ssNew.getId();
-    var excelBlobD = spreadsheetToXlsxBlob_(sidD);
-    var excelFileD = folder.createFile(excelBlobD.setName('Menus ' + dayLabel + ' ' + (wk || 'semana') + '.xlsx'));
-    DriveApp.getRootFolder().removeFile(DriveApp.getFileById(sidD));
-    var excelUrlD = excelFileD.getUrl();
+    var sheetUrlD = moverPlanillaACarpetaMenues_(sidD, folder, 'Menus ' + dayLabel + ' ' + (wk || 'semana'));
     var subject = 'Men\u00fa d\u00eda (' + dayLabel + ') - ' + (wk || 'semana');
-    var htmlBody = crearHtmlMailProveedorDia(excelUrlD, wk || 'semana', dayLabel);
-    var bodyPlain = 'Resumen de men\u00fas para ' + dayLabel + ' (semana ' + (wk || '') + ').\n\nDescargar Excel: ' + excelUrlD;
+    var htmlBody = crearHtmlMailProveedorDia(sheetUrlD, wk || 'semana', dayLabel);
+    var bodyPlain = 'Resumen de men\u00fas para ' + dayLabel + ' (semana ' + (wk || '') + ').\n\nAbrir planilla: ' + sheetUrlD;
     try {
       MailApp.sendEmail(COCINA_EMAIL, subject, bodyPlain, { htmlBody: htmlBody });
     } catch (mailErr) {
       Logger.log('Mail proveedor d\u00eda: ' + mailErr);
     }
     var gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(bodyPlain);
-    return ContentService.createTextOutput(JSON.stringify({ ok: true, gmailUrl: gmailUrl, excelUrl: excelUrlD, pdfUrl: excelUrlD, dayLabel: dayLabel })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, gmailUrl: gmailUrl, excelUrl: sheetUrlD, pdfUrl: sheetUrlD, sheetUrl: sheetUrlD, dayLabel: dayLabel })).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
     Logger.log('adminPdfGmailDia: ' + e);
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON);
