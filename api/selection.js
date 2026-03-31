@@ -39,23 +39,9 @@ function stripJsonBom(text) {
   return text.replace(/^\uFEFF/, '').trim()
 }
 
-/**
- * Variantes de URL /exec.
- * Desde servidores (Vercel), script.google.com a veces redirige mal y termina en HTML de Drive;
- * script.googleusercontent.com suele responder doPost sin ese problema → probarlo primero.
- */
+/** Usar exactamente la URL configurada en Vercel; no inventar hosts alternos. */
 function execUrlCandidates() {
-  const u = APPS_SCRIPT_URL
-  const list = []
-  if (u.includes('script.google.com')) {
-    list.push(u.replace('script.google.com', 'script.googleusercontent.com'))
-  }
-  list.push(u)
-  if (u.includes('script.googleusercontent.com')) {
-    const alt = u.replace('script.googleusercontent.com', 'script.google.com')
-    if (alt !== u) list.push(alt)
-  }
-  return [...new Set(list)]
+  return [APPS_SCRIPT_URL]
 }
 
 function requestHeadersForAppsScript(baseUrl, headers) {
@@ -68,34 +54,13 @@ function requestHeadersForAppsScript(baseUrl, headers) {
 }
 
 async function postOnceWithRedirects(baseUrl, payload, headers) {
-  let url = baseUrl
-  let res = await fetch(url, {
+  return fetch(baseUrl, {
     method: 'POST',
     headers: requestHeadersForAppsScript(baseUrl, headers),
     body: payload,
-    redirect: 'manual',
+    // Dejar que fetch maneje 301/302/303 correctamente.
+    redirect: 'follow',
   })
-  for (let hop = 0; hop < 5; hop++) {
-    if (res.status !== 301 && res.status !== 302 && res.status !== 303 && res.status !== 307 && res.status !== 308) break
-    const loc = res.headers.get('location')
-    if (!loc) break
-    const nextUrl = loc.startsWith('http') ? loc : new URL(loc, url).href
-    // No seguir hacia Drive/Docs con POST: devuelve HTML "Page Not Found" y rompe JSON.
-    if (
-      /docs\.google\.com|drive\.google\.com|accounts\.google\.com/i.test(nextUrl) &&
-      !/script\.google/i.test(nextUrl)
-    ) {
-      break
-    }
-    url = nextUrl
-    res = await fetch(nextUrl, {
-      method: 'POST',
-      headers: requestHeadersForAppsScript(baseUrl, headers),
-      body: payload,
-      redirect: 'manual',
-    })
-  }
-  return res
 }
 
 /**
