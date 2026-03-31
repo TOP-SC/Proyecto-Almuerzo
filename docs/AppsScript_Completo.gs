@@ -1199,6 +1199,20 @@ function soloTurnoPdf_(val) {
   return '1';
 }
 
+function compararTextoEsBase_(a, b) {
+  var s1 = (a || '').toString().trim();
+  var s2 = (b || '').toString().trim();
+  try {
+    return s1.localeCompare(s2, 'es', { sensitivity: 'base' });
+  } catch (e) {
+    var n1 = s1.toLowerCase();
+    var n2 = s2.toLowerCase();
+    if (n1 < n2) return -1;
+    if (n1 > n2) return 1;
+    return 0;
+  }
+}
+
 /** 0=Lunes ... 4=Viernes, null = s\u00e1bado/domingo (Argentina). u: 1=lunes..7=domingo */
 function argentinaMenuDayIndex_() {
   var tz = 'America/Argentina/Buenos_Aires';
@@ -1226,16 +1240,13 @@ function obtenerFiltradosOrdenadosParaPdf_(wk) {
     seenPdf[key] = true;
     return true;
   });
-  function apellido(nombre) {
-    var s = (nombre || '').toString().trim();
-    var parts = s.split(/\s+/);
-    return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : s.toLowerCase();
-  }
   filtrados.sort(function(a, b) {
     var t1 = String(a[4] || '').indexOf('2') !== -1 ? 2 : 1;
     var t2 = String(b[4] || '').indexOf('2') !== -1 ? 2 : 1;
     if (t1 !== t2) return t1 - t2;
-    return apellido(a[2]).localeCompare(apellido(b[2]));
+    var cNombre = compararTextoEsBase_(a[2], b[2]);
+    if (cNombre !== 0) return cNombre;
+    return compararTextoEsBase_(a[3], b[3]); // desempate estable por email
   });
   return { sheet: sheet, filtrados: filtrados };
 }
@@ -1269,6 +1280,8 @@ function generarInformeSemanal() {
   }
   var turno1 = semanaFiltrada.filter(function(row) { return String(row[4]).indexOf('1') !== -1; });
   var turno2 = semanaFiltrada.filter(function(row) { return String(row[4]).indexOf('2') !== -1; });
+  turno1.sort(function(a, b) { return compararTextoEsBase_(a[2], b[2]); });
+  turno2.sort(function(a, b) { return compararTextoEsBase_(a[2], b[2]); });
   var meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   var parts = strFecha.split('-');
   var d1 = parseInt(parts[2], 10);
