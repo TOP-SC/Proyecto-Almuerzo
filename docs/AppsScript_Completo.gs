@@ -93,26 +93,24 @@ function obtenerHojaUsuarios() {
 
 // Genera tokens para todos los usuarios que no tengan uno en la columna "token"
 function generarTokensSiFaltan() {
-  const sheet = obtenerHojaUsuarios();
+  var sheet = obtenerHojaUsuarios();
   if (!sheet) return;
-  const lastRow = sheet.getLastRow();
+  var lastRow = sheet.getLastRow();
   if (lastRow < 2) return;
 
-  const data = sheet.getRange(2, 1, lastRow, 3).getValues();
-  const updates = [];
-
-  data.forEach((row, index) => {
-    const email = row[0];
-    const nombre = row[1];
-    let token = row[2];
-
-    if (!email) return;
-
+  var data = sheet.getRange(2, 1, lastRow, 3).getValues();
+  var updates = [];
+  var index;
+  for (index = 0; index < data.length; index++) {
+    var row = data[index];
+    var email = row[0];
+    var token = row[2];
+    if (!email) continue;
     if (!token) {
       token = generateToken_();
       updates.push({ rowIndex: index, token: token });
     }
-  });
+  }
 
   if (updates.length > 0) {
     updates.forEach(function(u) {
@@ -211,40 +209,42 @@ function crearHtmlMailProveedorDia(fileUrl, weekKey, dayLabel) {
 
 // ENVÍA UN MAIL A CADA USUARIO CON SU LINK PERSONALIZADO (incluye turno)
 function enviarLinksMenuSemanal() {
-  const sheet = obtenerHojaUsuarios();
+  var sheet = obtenerHojaUsuarios();
 
   generarTokensSiFaltan();
 
-  const lastRow = sheet.getLastRow();
+  var lastRow = sheet.getLastRow();
   if (lastRow < 2) return;
 
   // Leer 4 columnas: A=email, B=nombre, C=token, D=turno
-  const data = sheet.getRange(2, 1, lastRow, 4).getValues();
+  var data = sheet.getRange(2, 1, lastRow, 4).getValues();
 
-  const TEST_EMAILS = [
+  var TEST_EMAILS = [
     'juan.billiot@sommiercenter.com',
   ];
 
-  data.forEach((row) => {
-    const email = row[0];
-    const nombre = row[1] || 'Colaborador';
-    const token = row[2];
-    const turno = (row[3] === 2 || row[3] === '2') ? 2 : 1;
+  var i;
+  for (i = 0; i < data.length; i++) {
+    var row = data[i];
+    var email = row[0];
+    var nombre = row[1] || 'Colaborador';
+    var token = row[2];
+    var turno = (row[3] === 2 || row[3] === '2') ? 2 : 1;
 
-    if (!email || !token) return;
+    if (!email || !token) continue;
 
     if (TEST_EMAILS.indexOf(email) === -1) {
-      return;
+      continue;
     }
 
-    const url = APP_BASE_URL
+    var url = APP_BASE_URL
       + '?u=' + encodeURIComponent(token)
       + '&email=' + encodeURIComponent(email)
       + '&name=' + encodeURIComponent(nombre)
       + '&turno=' + turno;
 
-    const subject = 'Men\u00fa semanal disponible';
-    const htmlBody = crearHtmlMailUsuario(nombre, url);
+    var subject = 'Men\u00fa semanal disponible';
+    var htmlBody = crearHtmlMailUsuario(nombre, url);
 
     MailApp.sendEmail({
       to: email,
@@ -252,7 +252,7 @@ function enviarLinksMenuSemanal() {
       body: 'Buen d\u00eda ' + nombre + ',\n\nYa est\u00e1 disponible el men\u00fa semanal. Ingres\u00e1 al siguiente enlace para elegir tu men\u00fa:\n\n' + url + '\n\nSaludos,\nRRHH / Organizaci\u00f3n de Almuerzos',
       htmlBody: htmlBody
     });
-  });
+  }
 }
 
 // Para que la URL no dé error al abrirla en el navegador (GET)
