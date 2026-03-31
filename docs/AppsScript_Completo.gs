@@ -358,11 +358,16 @@ function setCycleState(weekKey, abierto) {
 }
 
 // Normaliza semana para comparación (Date o string -> YYYY-MM-DD)
-// Acepta: Date, YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY
+// Acepta: Date, número serial de Hoja, YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY
 function normalizarSemana(val) {
   if (val === null || val === undefined || val === '') return '';
   if (val instanceof Date) {
     return Utilities.formatDate(val, Session.getScriptTimeZone() || 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd');
+  }
+  if (typeof val === 'number' && !isNaN(val) && val > 20000 && val < 100000) {
+    var ms = (val - 25569) * 86400 * 1000;
+    var dNum = new Date(ms);
+    return Utilities.formatDate(dNum, Session.getScriptTimeZone() || 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd');
   }
   var s = String(val).trim();
   var mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);

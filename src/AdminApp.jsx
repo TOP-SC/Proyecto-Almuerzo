@@ -487,9 +487,11 @@ function AdminApp() {
   });
 
   const weekKeyNorm = normalizeWeekKeyToIso(activeWeekKey || menuWeek.weekKey);
-  const usersThisWeekRaw = users.filter(
-    (u) => normalizeWeekKeyToIso(u.semana || '') === weekKeyNorm,
-  );
+  // Si el desplegable tiene una semana concreta, admin_list ya filtró: no volver a filtrar por semana (evita vacíos por desajuste de formato).
+  const usersThisWeekRaw =
+    weekKeyOverride.trim() === ''
+      ? users.filter((u) => normalizeWeekKeyToIso(u.semana || '') === weekKeyNorm)
+      : users;
   const usersThisWeek = (() => {
     const seen = {};
     return [...usersThisWeekRaw].reverse().filter(u => {
