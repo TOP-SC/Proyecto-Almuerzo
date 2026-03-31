@@ -51,6 +51,8 @@ function AdminApp() {
   const [addForm, setAddForm] = useState({ nombre: '', turno: '1', selections: {} });
   const [actionLoading, setActionLoading] = useState(null);
   const [weekKeyOverride, setWeekKeyOverride] = useState(() => getMenuWeek().weekKey);
+  /** 'auto' = día hábil actual en Argentina; 0–4 = Lunes–Viernes para Excel del día */
+  const [excelDiaIndex, setExcelDiaIndex] = useState('auto');
   const [lastDebug, setLastDebug] = useState(null);
   const [connectionOk, setConnectionOk] = useState(null);
   const [activeView, setActiveView] = useState('dashboard');
@@ -349,10 +351,12 @@ function AdminApp() {
     setActionLoading('pdfdia');
     setError('');
     try {
+      const body = { action: 'admin_pdf_gmail_dia', adminSecret, weekKey: activeWeekKey };
+      if (excelDiaIndex !== 'auto') body.dayIndex = parseInt(excelDiaIndex, 10);
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'admin_pdf_gmail_dia', adminSecret, weekKey: activeWeekKey }),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
       if (data.ok && data.gmailUrl) {
@@ -713,6 +717,8 @@ function AdminApp() {
               handleSendOpening={handleSendOpening}
               handlePdfGmail={handlePdfGmail}
               handlePdfGmailDia={handlePdfGmailDia}
+              excelDiaIndex={excelDiaIndex}
+              onExcelDiaIndexChange={setExcelDiaIndex}
               actionLoading={actionLoading}
               cycleOpen={cycleOpen}
               handleCycleOpen={handleCycleOpen}
@@ -1003,7 +1009,20 @@ const MENU_CARD_COLORS = {
   'SIN VIANDA': { bg: 'from-slate-400 to-slate-500', shadow: 'shadow-slate-400/30', text: 'text-white' },
 };
 
-function DashboardView({ menuChartData, confirmChartData, handleSendOpening, handlePdfGmail, handlePdfGmailDia, actionLoading, cycleOpen, handleCycleOpen, handleCycleClose, weekLabel }) {
+function DashboardView({
+  menuChartData,
+  confirmChartData,
+  handleSendOpening,
+  handlePdfGmail,
+  handlePdfGmailDia,
+  excelDiaIndex,
+  onExcelDiaIndexChange,
+  actionLoading,
+  cycleOpen,
+  handleCycleOpen,
+  handleCycleClose,
+  weekLabel,
+}) {
   return (
     <div className="max-w-4xl h-full flex flex-col gap-4">
       {/* Ciclo apertura/cierre */}
@@ -1101,15 +1120,34 @@ function DashboardView({ menuChartData, confirmChartData, handleSendOpening, han
           {actionLoading === 'pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
           Excel semanal a proveedor
         </button>
-        <button
-          onClick={handlePdfGmailDia}
-          disabled={actionLoading === 'pdf' || actionLoading === 'pdfdia'}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 transition-all bg-gradient-to-r from-teal-500 to-emerald-700"
-          title="Excel del día de hoy (Argentina), según la semana seleccionada. Fin de semana: no disponible."
-        >
-          {actionLoading === 'pdfdia' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-          Excel del día a proveedor
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="excel-dia-select" className="text-sm text-slate-600 whitespace-nowrap">
+            Día (Excel diario):
+          </label>
+          <select
+            id="excel-dia-select"
+            value={excelDiaIndex}
+            onChange={(e) => onExcelDiaIndexChange(e.target.value)}
+            className="text-sm px-2 py-2 rounded-lg border border-slate-200 bg-white text-slate-800 shadow-sm min-w-[11rem]"
+            title="Semana = arriba en el encabezado. «Hoy» usa el día hábil en Argentina; si elegís un día fijo, podés exportar un día de una semana pasada o un sábado/domingo."
+          >
+            <option value="auto">Hoy (Argentina)</option>
+            <option value="0">Lunes</option>
+            <option value="1">Martes</option>
+            <option value="2">Miércoles</option>
+            <option value="3">Jueves</option>
+            <option value="4">Viernes</option>
+          </select>
+          <button
+            onClick={handlePdfGmailDia}
+            disabled={actionLoading === 'pdf' || actionLoading === 'pdfdia'}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 transition-all bg-gradient-to-r from-teal-500 to-emerald-700"
+            title="Pedidos de un solo día de la semana elegida en el encabezado. «Hoy» = día actual en Argentina; o elegí Lunes–Viernes."
+          >
+            {actionLoading === 'pdfdia' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            Excel del día a proveedor
+          </button>
+        </div>
       </div>
     </div>
   );

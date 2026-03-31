@@ -593,7 +593,7 @@ function handleAdminAction(data) {
       return adminPdfGmail(data.weekKey);
     }
     if (action === 'admin_pdf_gmail_dia') {
-      return adminPdfGmailDia(data.weekKey);
+      return adminPdfGmailDia(data.weekKey, data.dayIndex);
     }
     if (action === 'admin_send_reminder') {
       return adminSendReminder(data.weekKey, data.emails, data);
@@ -834,6 +834,24 @@ function sumaMenus1a5PorDia_(contadorPorDia, td) {
   return sum;
 }
 
+/**
+ * Convierte un Google Sheet a Blob .xlsx.
+ * DriveApp.getFileById(id).getAs(MimeType.MICROSOFT_EXCEL) ya no es compatible con spreadsheets.
+ */
+function spreadsheetToXlsxBlob_(spreadsheetId) {
+  var url = 'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(spreadsheetId) + '/export?format=xlsx';
+  var token = ScriptApp.getOAuthToken();
+  var response = UrlFetchApp.fetch(url, {
+    headers: { Authorization: 'Bearer ' + token },
+    muteHttpExceptions: true
+  });
+  var code = response.getResponseCode();
+  if (code !== 200) {
+    throw new Error('Export xlsx fall\u00f3 (HTTP ' + code + '). Revis\u00e1 permisos del script sobre Drive/Sheets.');
+  }
+  return response.getBlob();
+}
+
 // Genera Excel del resumen y devuelve URL de Gmail para enviarlo
 function adminPdfGmail(weekKey) {
   try {
@@ -915,7 +933,7 @@ function adminPdfGmail(weekKey) {
     SpreadsheetApp.flush();
     var folder = obtenerCarpetaMenuesPdf_();
     var sid = ssNew.getId();
-    var excelBlob = DriveApp.getFileById(sid).getAs(MimeType.MICROSOFT_EXCEL);
+    var excelBlob = spreadsheetToXlsxBlob_(sid);
     var excelFile = folder.createFile(excelBlob.setName('Menus ' + (wk || 'semana') + '.xlsx'));
     DriveApp.getRootFolder().removeFile(DriveApp.getFileById(sid));
     var excelUrl = excelFile.getUrl();
@@ -935,15 +953,28 @@ function adminPdfGmail(weekKey) {
   }
 }
 
-function adminPdfGmailDia(weekKey) {
+// dayIndex opcional: 0=Lunes .. 4=Viernes. Si falta, usa el d\u00eda hoy en Argentina (lun\u2013vie).
+function adminPdfGmailDia(weekKey, dayIndexParam) {
   try {
     var wk = normalizarSemana(weekKey || '');
-    var dayIdx = argentinaMenuDayIndex_();
-    if (dayIdx === null) {
-      return ContentService.createTextOutput(JSON.stringify({
-        ok: false,
-        error: 'Hoy es fin de semana. El Excel del d\u00eda solo aplica de lunes a viernes (Argentina).'
-      })).setMimeType(ContentService.MimeType.JSON);
+    var dayIdx = null;
+    if (dayIndexParam !== undefined && dayIndexParam !== null && String(dayIndexParam) !== '') {
+      var di = parseInt(dayIndexParam, 10);
+      if (isNaN(di) || di < 0 || di > 4) {
+        return ContentService.createTextOutput(JSON.stringify({
+          ok: false,
+          error: 'D\u00eda inv\u00e1lido: us\u00e1 0\u20134 (Lunes a Viernes) o omit\u00ed el campo para usar hoy (Argentina).'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      dayIdx = di;
+    } else {
+      dayIdx = argentinaMenuDayIndex_();
+      if (dayIdx === null) {
+        return ContentService.createTextOutput(JSON.stringify({
+          ok: false,
+          error: 'Hoy es fin de semana. Eleg\u00ed un d\u00eda (Lunes\u2013Viernes) en el admin o volv\u00e9 un d\u00eda h\u00e1bil.'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
     }
     var pack = obtenerFiltradosOrdenadosParaPdf_(wk);
     if (!pack) return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No se pudo acceder al spreadsheet' })).setMimeType(ContentService.MimeType.JSON);
@@ -1018,7 +1049,7 @@ function adminPdfGmailDia(weekKey) {
     SpreadsheetApp.flush();
     var folder = obtenerCarpetaMenuesPdf_();
     var sidD = ssNew.getId();
-    var excelBlobD = DriveApp.getFileById(sidD).getAs(MimeType.MICROSOFT_EXCEL);
+    var excelBlobD = spreadsheetToXlsxBlob_(sidD);
     var excelFileD = folder.createFile(excelBlobD.setName('Menus ' + dayLabel + ' ' + (wk || 'semana') + '.xlsx'));
     DriveApp.getRootFolder().removeFile(DriveApp.getFileById(sidD));
     var excelUrlD = excelFileD.getUrl();
