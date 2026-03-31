@@ -1406,3 +1406,9 @@ function testAdminUpdate_() {
     Logger.log('Stack: ' + e.stack);
   }
 }
+
+// Ejecutar una vez para forzar la autorización de UrlFetchApp.
+function autorizarUrlFetch_() {
+  UrlFetchApp.fetch('https://www.google.com', { muteHttpExceptions: true });
+  return 'ok';
+}
