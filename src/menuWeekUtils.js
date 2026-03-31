@@ -105,6 +105,12 @@ export function weekLongLabelFromMondayKey(weekKeyStr) {
 }
 
 /**
+ * Primer lunes con datos útiles en el admin (no listar semanas anteriores vacías).
+ * Comparación lexicográfica con weekKey YYYY-MM-DD.
+ */
+export const MIN_ADMIN_WEEK_MONDAY = '2026-03-30';
+
+/**
  * Lista de claves de lunes desde `anchorMondayKey` hacia atrás (`count` semanas).
  */
 export function getWeekMondayKeysFrom(anchorMondayKey, count) {

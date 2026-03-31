@@ -7,6 +7,7 @@ import {
   weekRangeLabelFromMondayKey,
   weekLongLabelFromMondayKey,
   getWeekMondayKeysFrom,
+  MIN_ADMIN_WEEK_MONDAY,
 } from './menuWeekUtils.js';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/selection';
@@ -61,11 +62,13 @@ function AdminApp() {
   const menuWeek = getMenuWeek();
   const activeWeekKey = weekKeyOverride.trim() || menuWeek.weekKey;
 
-  /** Primero la vigente; el resto son histórico (útil pero secundario). */
+  /** Primero la vigente; el resto son histórico. Solo desde MIN_ADMIN_WEEK_MONDAY (sin semanas vacías anteriores). */
   const weekSelectGroups = useMemo(() => {
-    const keys = getWeekMondayKeysFrom(menuWeek.weekKey, 52);
-    const current = keys[0] || menuWeek.weekKey;
-    const previous = keys.slice(1);
+    const raw = getWeekMondayKeysFrom(menuWeek.weekKey, 52);
+    const keys = raw.filter((k) => k >= MIN_ADMIN_WEEK_MONDAY);
+    const finalKeys = keys.length > 0 ? keys : [menuWeek.weekKey];
+    const current = finalKeys[0] || menuWeek.weekKey;
+    const previous = finalKeys.slice(1);
     return { current, previous };
   }, [menuWeek.weekKey]);
 
@@ -75,6 +78,15 @@ function AdminApp() {
       setAdminSecret(stored);
       setIsAuth(true);
     }
+  }, []);
+
+  /** Semanas anteriores al 30/03/2026 ya no están en el desplegable: alinear estado al cargar. */
+  useEffect(() => {
+    setWeekKeyOverride((prev) => {
+      const t = prev.trim();
+      if (t && t < MIN_ADMIN_WEEK_MONDAY) return getMenuWeek().weekKey;
+      return prev;
+    });
   }, []);
 
   useEffect(() => {
