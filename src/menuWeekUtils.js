@@ -105,6 +105,24 @@ export function weekLongLabelFromMondayKey(weekKeyStr) {
 }
 
 /**
+ * Alineado con `normalizarSemana` en Apps Script: compara semana del Sheet con el selector (YYYY-MM-DD o dd/mm/aaaa).
+ */
+export function normalizeWeekKeyToIso(val) {
+  if (val == null || val === '') return '';
+  const s = String(val).trim();
+  const mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (mIso) return `${mIso[1]}-${mIso[2]}-${mIso[3]}`;
+  const mEs = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+  if (mEs) {
+    const dd = parseInt(mEs[1], 10);
+    const mm = parseInt(mEs[2], 10);
+    const yy = mEs[3];
+    return `${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+  }
+  return s;
+}
+
+/**
  * Primer lunes con datos útiles en el admin (no listar semanas anteriores vacías).
  * Comparación lexicográfica con weekKey YYYY-MM-DD.
  */

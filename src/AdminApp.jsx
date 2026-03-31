@@ -8,6 +8,7 @@ import {
   weekLongLabelFromMondayKey,
   getWeekMondayKeysFrom,
   MIN_ADMIN_WEEK_MONDAY,
+  normalizeWeekKeyToIso,
 } from './menuWeekUtils.js';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/selection';
@@ -485,8 +486,10 @@ function AdminApp() {
     return searchWords.every(w => texto.includes(w));
   });
 
-  const weekForDashboard = activeWeekKey || menuWeek.weekKey;
-  const usersThisWeekRaw = users.filter(u => (u.semana || '') === weekForDashboard);
+  const weekKeyNorm = normalizeWeekKeyToIso(activeWeekKey || menuWeek.weekKey);
+  const usersThisWeekRaw = users.filter(
+    (u) => normalizeWeekKeyToIso(u.semana || '') === weekKeyNorm,
+  );
   const usersThisWeek = (() => {
     const seen = {};
     return [...usersThisWeekRaw].reverse().filter(u => {

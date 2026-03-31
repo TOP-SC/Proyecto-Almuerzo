@@ -371,12 +371,23 @@ function setCycleState(weekKey, abierto) {
 }
 
 // Normaliza semana para comparación (Date o string -> YYYY-MM-DD)
+// Acepta: Date, YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY (común en celdas con formato regional)
 function normalizarSemana(val) {
-  if (!val) return '';
-  if (val instanceof Date) return Utilities.formatDate(val, Session.getScriptTimeZone() || 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd');
+  if (val === null || val === undefined || val === '') return '';
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, Session.getScriptTimeZone() || 'America/Argentina/Buenos_Aires', 'yyyy-MM-dd');
+  }
   var s = String(val).trim();
-  var m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
-  return m ? m[1] + '-' + m[2] + '-' + m[3] : s;
+  var mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (mIso) return mIso[1] + '-' + mIso[2] + '-' + mIso[3];
+  var mEs = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (mEs) {
+    var dd = parseInt(mEs[1], 10);
+    var mm = parseInt(mEs[2], 10);
+    var yy = mEs[3];
+    return yy + '-' + (mm < 10 ? '0' : '') + mm + '-' + (dd < 10 ? '0' : '') + dd;
+  }
+  return s;
 }
 
 // Obtiene o crea la hoja "Respuestas" (col 11 = Estado, col 12 = Detalle JSON)
