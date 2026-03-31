@@ -15,13 +15,14 @@ async function getBody(req) {
   })
 }
 
-/** Fallback cuando Apps Script falla (red, HTML, 5xx): la app no debe recibir HTTP 500 vacío */
+/**
+ * Fallback solo para acciones públicas cuando Apps Script devuelve HTML o no-JSON.
+ * Nunca simular éxito en admin_* (antes devolvía users: [] y el dashboard quedaba vacío sin avisar).
+ */
 function getFallbackResponse(body) {
   const action = (body?.action || '').toString().trim()
+  if (action.startsWith('admin_')) return null
   if (action === 'get_cycle_status') return { ok: true, abierto: true }
-  if (action === 'admin_ping') return { ok: true, message: 'pong' }
-  if (action === 'admin_list') return { ok: true, users: [], debug: { fallback: true } }
-  if (action === 'admin_list_empresa') return { ok: true, users: [], debug: { fallback: true } }
   return null
 }
 
@@ -70,12 +71,17 @@ export default async function handler(req, res) {
         const dbg = typeof fallback.debug === 'object' && fallback.debug ? fallback.debug : {}
         return res.status(200).json({ ...fallback, debug: { ...dbg, proxyReason: 'invalid_json' } })
       }
-      let errMsg = 'El backend no devolvió JSON válido'
+      let errMsg =
+        'Apps Script no devolvió JSON. Actualizá en Vercel la variable APPS_SCRIPT_URL con la URL /exec del despliegue actual (Apps Script → Desplegar → Gestionar implementaciones). Acceso: «Cualquier persona».'
       if (text.trim().startsWith('<!')) {
         const m = text.match(/class="errorMessage"[^>]*>([^<]+)/) || text.match(/Exception:[^<]*/i)
-        if (m) errMsg = 'Error Apps Script: ' + (m[1] || m[0]).trim().slice(0, 150)
+        if (m) errMsg = 'Apps Script: ' + (m[1] || m[0]).trim().slice(0, 200)
       }
-      data = { ok: false, error: errMsg, raw: text.slice(0, 500) }
+      data = {
+        ok: false,
+        error: errMsg,
+        debug: { proxyReason: 'invalid_json', status: response.status, snippet: text.slice(0, 600) },
+      }
     }
 
     if (!response.ok) {
