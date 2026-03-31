@@ -1,8 +1,37 @@
 // En Vercel: Project → Settings → Environment Variables → APPS_SCRIPT_URL = URL /exec (script.google.com o script.googleusercontent.com)
-const APPS_SCRIPT_URL = (
-  (typeof process !== 'undefined' && process.env && String(process.env.APPS_SCRIPT_URL || '').trim()) ||
-  'https://script.google.com/macros/s/AKfycbzGT2wpze1xsDR4AdFHHPOmHq5p9tpizMgCVeti364Dajk4A5cBb7_EKlyKGwLPBQ/exec'
-).trim()
+function normalizeAppsScriptUrl(raw) {
+  if (raw == null || raw === '') return ''
+  let s = String(raw).replace(/^\uFEFF/, '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim()
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1).trim()
+  }
+  if (s.startsWith('http://')) s = 'https://' + s.slice('http://'.length)
+  s = s.replace(/\/exec\/+$/i, '/exec')
+  return s.trim()
+}
+
+const APPS_SCRIPT_URL = normalizeAppsScriptUrl(
+  (typeof process !== 'undefined' && process.env && process.env.APPS_SCRIPT_URL) ||
+    'https://script.google.com/macros/s/AKfycbzGT2wpze1xsDR4AdFHHPOmHq5p9tpizMgCVeti364Dajk4A5cBb7_EKlyKGwLPBQ/exec'
+)
+
+/** Para el GET de diagnóstico: validar formato y últimos caracteres del ID (sin exponer la URL completa). */
+function describeExecUrl(u) {
+  const m = typeof u === 'string' && u.match(/https?:\/\/script\.google(?:usercontent)?\.com\/macros\/s\/([^/]+)\/exec/i)
+  if (!m) {
+    return {
+      execUrlFormatOk: false,
+      hint: 'La URL debe ser exactamente https://script.google.com/macros/s/ID_LARGO/exec (copiada desde Implementar → Aplicación web). No uses enlace del editor ni del Sheet.',
+    }
+  }
+  const id = m[1]
+  return {
+    execUrlFormatOk: true,
+    deploymentIdLength: id.length,
+    deploymentIdTail: id.length > 12 ? id.slice(-12) : id,
+    hint: 'Compará deploymentIdTail con el ID de la URL en Apps Script (deben coincidir los últimos caracteres).',
+  }
+}
 
 /** Quita BOM UTF-8 y espacios; a veces Google/Apps Script devuelve JSON válido pero con \uFEFF delante. */
 function stripJsonBom(text) {
@@ -10,14 +39,16 @@ function stripJsonBom(text) {
   return text.replace(/^\uFEFF/, '').trim()
 }
 
-/** Variantes de URL /exec (usercontent suele responder JSON sin pasar por 302). */
+/** Variantes de URL /exec: primero la configurada, luego el host alternativo. */
 function execUrlCandidates() {
   const u = APPS_SCRIPT_URL
   const list = []
+  list.push(u)
   if (u.includes('script.google.com')) {
     list.push(u.replace('script.google.com', 'script.googleusercontent.com'))
+  } else if (u.includes('script.googleusercontent.com')) {
+    list.push(u.replace('script.googleusercontent.com', 'script.google.com'))
   }
-  list.push(u)
   return [...new Set(list)]
 }
 
@@ -148,12 +179,14 @@ export default async function handler(req, res) {
   /** Abrí en el navegador: https://tu-dominio.vercel.app/api/selection — si ves JSON, la función existe y no te devolvió el index.html del SPA. */
   if (method === 'GET') {
     const envSet = !!(typeof process !== 'undefined' && process.env && String(process.env.APPS_SCRIPT_URL || '').trim())
+    const execInfo = describeExecUrl(APPS_SCRIPT_URL)
     return res.status(200).json({
       ok: true,
       proxy: 'api/selection',
       appsScriptUrlFromEnv: envSet,
+      ...execInfo,
       message:
-        'Ruta OK. Si ves HTML en vez de esto, el deploy no incluye /api o el rewrite tapa la API. En Vercel: APPS_SCRIPT_URL en Production + redeploy. Probá POST con JSON { "action":"admin_ping","adminSecret":"..." }.',
+        'Ruta OK. Si POST falla con HTML de Google, el ID en APPS_SCRIPT_URL no coincide con un Web App activo: copiá de nuevo la URL desde Apps Script → Implementar → Aplicación web (solo …/exec). Probá POST { "action":"admin_ping","adminSecret":"..." }.',
     })
   }
 
@@ -195,12 +228,17 @@ export default async function handler(req, res) {
       if (normalized.startsWith('<!')) {
         const m = text.match(/class="errorMessage"[^>]*>([^<]+)/) || text.match(/Exception:[^<]*/i)
         if (m) tip = 'Apps Script: ' + (m[1] || m[0]).trim().slice(0, 200)
+        if (/unable to open the file|Page Not Found/i.test(text)) {
+          tip =
+            'Google devolvió página de error (no es tu Web App): el ID en …/macros/s/ID/exec no existe o la implementación fue borrada. En Apps Script: Implementar → Gestionar implementaciones → **Aplicación web** → copiar URL que termina en /exec. No uses enlace del editor, del Sheet ni «Probar» del código. Pegá en Vercel (Production) y redeploy.'
+        }
       }
       const envSet = !!(typeof process !== 'undefined' && process.env && String(process.env.APPS_SCRIPT_URL || '').trim())
       if (!envSet) {
         tip =
           'En Vercel no está definida APPS_SCRIPT_URL (o está vacía): el proxy usa la URL por defecto del código, que puede ser vieja. Configurá la variable con la URL /exec del despliegue actual.'
       }
+      const execInfo = describeExecUrl(APPS_SCRIPT_URL)
       data = {
         ok: false,
         error: 'El servidor no devolvió datos válidos. Revisá APPS_SCRIPT_URL en Vercel (URL /exec del despliegue).',
@@ -210,6 +248,7 @@ export default async function handler(req, res) {
           tip,
           snippet: text.slice(0, 600),
           appsScriptUrlFromEnv: envSet,
+          ...execInfo,
         },
       }
     }
