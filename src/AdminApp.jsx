@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Shield, LogOut, Search, XCircle, Edit2, UserPlus, Check, Loader2, LayoutDashboard, Users, Mail, FileText, PieChart, Send, Building2, Lock, Unlock } from 'lucide-react';
 import { DriveService } from './driveService.js';
 import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { getMenuWeek } from './menuWeekUtils.js';
+import {
+  getMenuWeek,
+  weekRangeLabelFromMondayKey,
+  weekLongLabelFromMondayKey,
+  getWeekMondayKeysFrom,
+} from './menuWeekUtils.js';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/selection';
 const APP_BASE_URL = import.meta.env.VITE_APP_URL || 'https://proyecto-almuerzo.vercel.app';
@@ -44,7 +49,7 @@ function AdminApp() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState({ nombre: '', turno: '1', selections: {} });
   const [actionLoading, setActionLoading] = useState(null);
-  const [weekKeyOverride, setWeekKeyOverride] = useState('');
+  const [weekKeyOverride, setWeekKeyOverride] = useState(() => getMenuWeek().weekKey);
   const [lastDebug, setLastDebug] = useState(null);
   const [connectionOk, setConnectionOk] = useState(null);
   const [activeView, setActiveView] = useState('dashboard');
@@ -55,6 +60,14 @@ function AdminApp() {
 
   const menuWeek = getMenuWeek();
   const activeWeekKey = weekKeyOverride.trim() || menuWeek.weekKey;
+
+  /** Primero la vigente; el resto son histórico (útil pero secundario). */
+  const weekSelectGroups = useMemo(() => {
+    const keys = getWeekMondayKeysFrom(menuWeek.weekKey, 52);
+    const current = keys[0] || menuWeek.weekKey;
+    const previous = keys.slice(1);
+    return { current, previous };
+  }, [menuWeek.weekKey]);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('adminSecret');
@@ -73,18 +86,22 @@ function AdminApp() {
 
   useEffect(() => {
     if (isAuth && adminSecret) {
-      loadUsers();
       loadMenu();
       loadEmpresaUsers();
     }
   }, [isAuth, adminSecret]);
 
   useEffect(() => {
+    if (isAuth && adminSecret) {
+      loadUsers();
+    }
+  }, [isAuth, adminSecret, weekKeyOverride]);
+
+  useEffect(() => {
     if (isAuth && (activeView === 'dashboard' || activeView === 'empresa' || activeView === 'pendientes' || activeView === 'listado')) {
       loadEmpresaUsers();
     }
     if (isAuth && activeView === 'listado') {
-      loadUsers();
       const iv = setInterval(loadUsers, 30000);
       return () => clearInterval(iv);
     }
@@ -546,7 +563,13 @@ function AdminApp() {
             </div>
             <div>
               <span className="font-semibold text-slate-800">Admin</span>
-              <p className="text-[11px] text-slate-500 leading-tight">{menuWeek.label}</p>
+              <p className="text-[11px] text-slate-500 leading-tight">
+                {weekKeyOverride.trim() === ''
+                  ? 'Todas las semanas'
+                  : activeWeekKey === menuWeek.weekKey
+                    ? `Semana vigente · ${weekRangeLabelFromMondayKey(menuWeek.weekKey)}`
+                    : weekLongLabelFromMondayKey(activeWeekKey)}
+              </p>
             </div>
           </div>
         </div>
@@ -579,17 +602,40 @@ function AdminApp() {
       <main className="flex-1 flex flex-col min-w-0">
         <header className="bg-white/80 backdrop-blur border-b border-slate-200/80 px-4 py-2.5 flex flex-col gap-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-slate-600">Semana:</label>
-              <input
-                type="text"
+            <div className="flex items-center gap-2 flex-wrap">
+              <label htmlFor="admin-week-select" className="text-sm text-slate-600 shrink-0">
+                Semana:
+              </label>
+              <select
+                id="admin-week-select"
                 value={weekKeyOverride}
-                onChange={e => setWeekKeyOverride(e.target.value)}
-                placeholder={menuWeek.weekKey}
-                className="w-36 px-2 py-1 border border-slate-200 rounded text-sm"
-                title="Vacío=todas. Ej: 2026-03-09"
-              />
-              <button onClick={loadUsers} className="text-sm text-blue-600 hover:underline">Actualizar</button>
+                onChange={(e) => setWeekKeyOverride(e.target.value)}
+                className="min-w-[240px] max-w-[min(100%,420px)] px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                title="Por defecto: semana vigente. Podés revisar semanas pasadas abajo. «Todas las semanas» al final es opcional (listado sin filtro)."
+              >
+                <optgroup label="Semana vigente">
+                  <option value={weekSelectGroups.current}>
+                    {weekRangeLabelFromMondayKey(weekSelectGroups.current)} · {weekSelectGroups.current}
+                  </option>
+                </optgroup>
+                <optgroup label="Semanas anteriores">
+                  {weekSelectGroups.previous.map((wk) => (
+                    <option key={wk} value={wk}>
+                      {weekRangeLabelFromMondayKey(wk)} · {wk}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Opcional">
+                  <option value="">Todas las semanas (sin filtro)</option>
+                </optgroup>
+              </select>
+              <span className="text-xs text-slate-500 hidden sm:inline">
+                {weekKeyOverride.trim() === ''
+                  ? 'Listado sin filtro de semana'
+                  : activeWeekKey === menuWeek.weekKey
+                    ? 'Semana vigente'
+                    : 'Histórico'}
+              </span>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <button
@@ -659,7 +705,7 @@ function AdminApp() {
               cycleOpen={cycleOpen}
               handleCycleOpen={handleCycleOpen}
               handleCycleClose={handleCycleClose}
-              weekLabel={menuWeek.label}
+              weekLabel={weekLongLabelFromMondayKey(activeWeekKey)}
             />
           )}
           {activeView === 'menus' && (

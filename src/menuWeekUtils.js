@@ -69,3 +69,54 @@ export function getMenuWeekDayDatesDDMM() {
   }
   return dates;
 }
+
+const MESES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/**
+ * `weekKeyStr`: lunes en formato YYYY-MM-DD (misma convención que `getMenuWeek().weekKey`).
+ * Devuelve un texto corto tipo "3–7 mar" (lun–vie).
+ */
+export function weekRangeLabelFromMondayKey(weekKeyStr) {
+  if (!weekKeyStr || !/^\d{4}-\d{2}-\d{2}$/.test(weekKeyStr)) return '';
+  const [y, m, d] = weekKeyStr.split('-').map(Number);
+  const weekStart = new Date(y, m - 1, d);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 4);
+  const d1 = weekStart.getDate();
+  const d2 = weekEnd.getDate();
+  const mes = MESES_CORTO[weekEnd.getMonth()];
+  return `${d1}–${d2} ${mes}`;
+}
+
+/**
+ * Misma forma que `getMenuWeek().label` pero para cualquier lunes (YYYY-MM-DD).
+ */
+export function weekLongLabelFromMondayKey(weekKeyStr) {
+  if (!weekKeyStr || !/^\d{4}-\d{2}-\d{2}$/.test(weekKeyStr)) return '';
+  const [y, m, d] = weekKeyStr.split('-').map(Number);
+  const weekStart = new Date(y, m - 1, d);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 4);
+  const meses = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+  ];
+  return `Semana del ${weekStart.getDate()} al ${weekEnd.getDate()} de ${meses[weekEnd.getMonth()]}`;
+}
+
+/**
+ * Lista de claves de lunes desde `anchorMondayKey` hacia atrás (`count` semanas).
+ */
+export function getWeekMondayKeysFrom(anchorMondayKey, count) {
+  if (!anchorMondayKey || !/^\d{4}-\d{2}-\d{2}$/.test(anchorMondayKey)) return [];
+  const [y, m, d] = anchorMondayKey.split('-').map(Number);
+  const cur = new Date(y, m - 1, d);
+  const keys = [];
+  for (let i = 0; i < count; i++) {
+    keys.push(
+      `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`,
+    );
+    cur.setDate(cur.getDate() - 7);
+  }
+  return keys;
+}
