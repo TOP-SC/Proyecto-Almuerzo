@@ -1,5 +1,6 @@
 {
   "timeZone": "America/Argentina/Buenos_Aires",
+  "runtimeVersion": "V8",
   "exceptionLogging": "STACKDRIVER",
   "oauthScopes": [
     "https://www.googleapis.com/auth/spreadsheets",

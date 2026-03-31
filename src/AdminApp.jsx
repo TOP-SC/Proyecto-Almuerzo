@@ -184,12 +184,13 @@ function AdminApp() {
         setUsers([]);
         return;
       }
-      setLastDebug(data.debug || (data.error ? { error: data.error } : null));
+      const baseDebug = data.debug && typeof data.debug === 'object' ? data.debug : {};
       if (data.ok) {
         setUsers(data.users || []);
+        setLastDebug(Object.keys(baseDebug).length ? baseDebug : null);
       } else {
         const errMsg = data.error || 'Sin mensaje del servidor';
-        setLastDebug({ status: res.status, error: data.error });
+        setLastDebug({ ...baseDebug, status: res.status, error: data.error });
         setError(errMsg);
       }
     } catch (err) {
@@ -695,7 +696,11 @@ function AdminApp() {
                     if (data.ok) {
                       setConnectionOk(true);
                       setTimeout(() => setConnectionOk(null), 3000);
-                    } else setError(data.error || 'Error');
+                      setLastDebug(null);
+                    } else {
+                      setLastDebug(data.debug && typeof data.debug === 'object' ? data.debug : null);
+                      setError(data.error || 'Error');
+                    }
                   } catch (e) { setError(e.message || 'Error'); }
                 }}
                 className="text-sm text-slate-600 hover:underline"
@@ -729,9 +734,19 @@ function AdminApp() {
         </header>
 
         {error && (
-          <div className="mx-4 mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex justify-between items-center">
-            <span>{error}</span>
-            <button onClick={() => setError('')} className="text-red-500 hover:text-red-700">×</button>
+          <div className="mx-4 mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex justify-between items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <span>{error}</span>
+              {lastDebug && lastDebug.tip ? (
+                <p className="mt-2 font-medium text-red-900">Detalle: {String(lastDebug.tip)}</p>
+              ) : null}
+              {lastDebug && lastDebug.snippet ? (
+                <pre className="mt-2 p-2 bg-red-100/80 rounded text-xs text-red-950 whitespace-pre-wrap break-all max-h-48 overflow-auto border border-red-200/60">
+                  {String(lastDebug.snippet)}
+                </pre>
+              ) : null}
+            </div>
+            <button type="button" onClick={() => setError('')} className="text-red-500 hover:text-red-700 shrink-0">×</button>
           </div>
         )}
 
@@ -843,7 +858,11 @@ function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setS
   ) : null;
   const selectedEmpresaUser = selectedFromDropdown;
 
-  const proxyFallback = !!(lastDebug && lastDebug.fallback) || !!(empresaDebug && empresaDebug.fallback);
+  const proxyFallback =
+    !!(lastDebug && lastDebug.fallback) ||
+    !!(empresaDebug && empresaDebug.fallback) ||
+    lastDebug?.proxyReason === 'invalid_json' ||
+    empresaDebug?.proxyReason === 'invalid_json';
   const proxyReason = (lastDebug && lastDebug.proxyReason) || (empresaDebug && empresaDebug.proxyReason);
 
   return (
@@ -852,6 +871,10 @@ function ListView({ filteredUsers, loading, search, setSearch, showAddForm, setS
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-900 text-sm">
           <strong>El servidor (Vercel) no recibió JSON válido desde Apps Script.</strong> Suele pasar si la URL del Web App es vieja, el despliegue fue borrado, o el acceso no es &quot;Cualquier persona&quot;. En Vercel configurá la variable <code className="bg-red-100 px-1 rounded">APPS_SCRIPT_URL</code> con la URL <code className="bg-red-100 px-1 rounded">…/exec</code> nueva. Si el script es una librería o Web App sin contenedor, en Apps Script ejecutá una vez <code className="bg-red-100 px-1 rounded">registrarIdSpreadsheetEnPropiedades</code> (desde el editor, con el Sheet abierto) o definí <code className="bg-red-100 px-1 rounded">USUARIOS_SPREADSHEET_ID</code> en el .gs.
           {proxyReason ? <span className="block mt-1 text-red-800">Motivo proxy: {String(proxyReason)}</span> : null}
+          {lastDebug && lastDebug.tip ? <span className="block mt-2 text-red-900 font-medium">Detalle: {String(lastDebug.tip)}</span> : null}
+          {lastDebug && lastDebug.snippet ? (
+            <pre className="mt-2 p-2 bg-red-100/80 rounded text-xs text-red-950 whitespace-pre-wrap break-all max-h-40 overflow-auto">{String(lastDebug.snippet)}</pre>
+          ) : null}
         </div>
       )}
       {empresaListFetched && Array.isArray(empresaUsersFromApi) && empresaUsersFromApi.length === 0 && !proxyFallback && (
