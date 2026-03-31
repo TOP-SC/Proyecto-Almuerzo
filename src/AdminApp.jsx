@@ -307,7 +307,7 @@ function AdminApp() {
       if (data.ok && data.gmailUrl) {
         window.open(data.gmailUrl, '_blank', 'noopener');
       } else {
-        setError(data.error || 'Error al generar PDF');
+        setError(data.error || 'Error al generar Excel');
       }
     } catch (err) {
       setError(err.message);
@@ -329,7 +329,7 @@ function AdminApp() {
       if (data.ok && data.gmailUrl) {
         window.open(data.gmailUrl, '_blank', 'noopener');
       } else {
-        setError(data.error || 'Error al generar PDF del día');
+        setError(data.error || 'Error al generar Excel del día');
       }
     } catch (err) {
       setError(err.message);
@@ -1041,16 +1041,16 @@ function DashboardView({ menuChartData, confirmChartData, handleSendOpening, han
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all bg-gradient-to-r from-green-500 to-emerald-600"
         >
           {actionLoading === 'pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-          Menú a proveedor
+          Excel semanal a proveedor
         </button>
         <button
           onClick={handlePdfGmailDia}
           disabled={actionLoading === 'pdf' || actionLoading === 'pdfdia'}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white shadow-lg shadow-teal-500/25 hover:shadow-teal-500/40 transition-all bg-gradient-to-r from-teal-500 to-emerald-700"
-          title="Solo el día de hoy (Argentina), según la semana seleccionada. Fin de semana: no disponible."
+          title="Excel del día de hoy (Argentina), según la semana seleccionada. Fin de semana: no disponible."
         >
           {actionLoading === 'pdfdia' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-          Menú del día a proveedor
+          Excel del día a proveedor
         </button>
       </div>
     </div>
@@ -1060,8 +1060,9 @@ function DashboardView({ menuChartData, confirmChartData, handleSendOpening, han
 function MenusView({ menuCounts, menuCountsByDay }) {
   const [tab, setTab] = useState('semanal');
   const MENU_ORDER = ['MENU 1', 'MENU 2', 'MENU 3', 'MENU 4', 'MENU 5', 'REMOTO', 'SIN VIANDA'];
+  const MENU_ONLY_1_5 = ['MENU 1', 'MENU 2', 'MENU 3', 'MENU 4', 'MENU 5'];
   const dayLabels = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
-  const total = Object.values(menuCounts).reduce((a, b) => a + b, 0);
+  const totalMenusOnly = MENU_ONLY_1_5.reduce((a, k) => a + (menuCounts[k] || 0), 0);
   const entries = Object.entries(menuCounts).sort((a, b) => {
     const iA = MENU_ORDER.indexOf(a[0]);
     const iB = MENU_ORDER.indexOf(b[0]);
@@ -1111,8 +1112,11 @@ function MenusView({ menuCounts, menuCountsByDay }) {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             {entries.map(([name, count]) => renderCard(name, count, false))}
           </div>
-          {total > 0 && (
-            <p className="mt-4 text-sm text-slate-500">Total: {total} selecciones</p>
+          {totalMenusOnly > 0 && (
+            <p className="mt-4 text-sm text-slate-500">
+              Total menús (1–5): <strong>{totalMenusOnly}</strong>
+              <span className="text-slate-400"> · REMOTO y SIN VIANDA no suman en este total</span>
+            </p>
           )}
         </>
       )}
@@ -1129,10 +1133,10 @@ function MenusView({ menuCounts, menuCountsByDay }) {
               if (iB >= 0) return 1;
               return (a[0] || '').localeCompare(b[0] || '');
             });
-            const dayTotal = Object.values(dayCounts).reduce((a, b) => a + b, 0);
+            const dayTotalMenus = MENU_ONLY_1_5.reduce((a, k) => a + (dayCounts[k] || 0), 0);
             return (
               <div key={day}>
-                <h3 className="text-sm font-semibold text-slate-600 mb-2">{day} {dayTotal > 0 && `(${dayTotal})`}</h3>
+                <h3 className="text-sm font-semibold text-slate-600 mb-2">{day}{dayTotalMenus > 0 && ` · menús 1–5: ${dayTotalMenus}`}</h3>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
                   {dayEntries.map(([name, count]) => renderCard(name, count, true))}
                 </div>

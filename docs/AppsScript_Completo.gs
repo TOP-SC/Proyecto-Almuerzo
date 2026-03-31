@@ -165,8 +165,8 @@ function crearHtmlMailRecordatorio(nombre, url) {
     '</td></tr></table></td></tr></table></body></html>';
 }
 
-// Mail al proveedor con link al PDF - entidades HTML para acentos
-function crearHtmlMailProveedor(pdfUrl, weekKey) {
+// Mail al proveedor con link al archivo (Excel) - entidades HTML para acentos
+function crearHtmlMailProveedor(fileUrl, weekKey) {
   return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;font-family:\'Segoe UI\',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#ecfdf5 0%,#d1fae5 100%);">' +
     '<table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 16px;"><tr><td align="center">' +
     '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:420px;background:#ffffff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.08);overflow:hidden;border:1px solid rgba(0,0,0,0.04);">' +
@@ -175,19 +175,19 @@ function crearHtmlMailProveedor(pdfUrl, weekKey) {
     '<p style="margin:8px 0 0;color:rgba(255,255,255,0.95);font-size:15px;">Resumen para proveedor</p>' +
     '</td></tr>' +
     '<tr><td style="padding:28px 24px;">' +
-    '<p style="margin:0 0 16px;color:#1e293b;font-size:16px;line-height:1.5;">Hac&eacute; clic en el bot&oacute;n para ver el resumen de men&uacute;s elegidos.</p>' +
+    '<p style="margin:0 0 16px;color:#1e293b;font-size:16px;line-height:1.5;">Hac&eacute; clic para descargar el Excel con el resumen de men&uacute;s elegidos (editable).</p>' +
     '<p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">Semana: ' + (weekKey || '') + '</p>' +
     '<p style="margin:0 0 20px;text-align:center;">' +
-    '<a href="' + pdfUrl + '" style="display:inline-block;padding:14px 32px;background:#059669;color:#ffffff!important;text-decoration:none;font-size:16px;font-weight:600;border-radius:10px;box-shadow:0 4px 14px rgba(5,150,105,0.4);">Ver PDF</a>' +
+    '<a href="' + fileUrl + '" style="display:inline-block;padding:14px 32px;background:#059669;color:#ffffff!important;text-decoration:none;font-size:16px;font-weight:600;border-radius:10px;box-shadow:0 4px 14px rgba(5,150,105,0.4);">Descargar Excel</a>' +
     '</p>' +
-    '<p style="margin:0;color:#64748b;font-size:13px;text-align:center;">O copi&aacute; este enlace: <a href="' + pdfUrl + '" style="color:#059669;word-break:break-all;">' + pdfUrl + '</a></p>' +
+    '<p style="margin:0;color:#64748b;font-size:13px;text-align:center;">O copi&aacute; este enlace: <a href="' + fileUrl + '" style="color:#059669;word-break:break-all;">' + fileUrl + '</a></p>' +
     '</td></tr>' +
     '<tr><td style="padding:16px 24px;background:#ecfdf5;border-top:1px solid #a7f3d0;">' +
     '<p style="margin:0;color:#047857;font-size:12px;">RRHH &middot; Organizaci&oacute;n de Almuerzos</p>' +
     '</td></tr></table></td></tr></table></body></html>';
 }
 
-function crearHtmlMailProveedorDia(pdfUrl, weekKey, dayLabel) {
+function crearHtmlMailProveedorDia(fileUrl, weekKey, dayLabel) {
   var dl = dayLabel || 'd\u00eda';
   return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;font-family:\'Segoe UI\',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#ecfdf5 0%,#d1fae5 100%);">' +
     '<table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 16px;"><tr><td align="center">' +
@@ -197,12 +197,12 @@ function crearHtmlMailProveedorDia(pdfUrl, weekKey, dayLabel) {
     '<p style="margin:8px 0 0;color:rgba(255,255,255,0.95);font-size:15px;">' + dl + ' &middot; resumen para proveedor</p>' +
     '</td></tr>' +
     '<tr><td style="padding:28px 24px;">' +
-    '<p style="margin:0 0 16px;color:#1e293b;font-size:16px;line-height:1.5;">PDF solo con pedidos y cantidades de <strong>' + dl + '</strong> (fecha Argentina).</p>' +
+    '<p style="margin:0 0 16px;color:#1e293b;font-size:16px;line-height:1.5;">Excel con pedidos de <strong>' + dl + '</strong> (fecha Argentina). Colores por tipo de men&uacute;.</p>' +
     '<p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">Semana: ' + (weekKey || '') + '</p>' +
     '<p style="margin:0 0 20px;text-align:center;">' +
-    '<a href="' + pdfUrl + '" style="display:inline-block;padding:14px 32px;background:#059669;color:#ffffff!important;text-decoration:none;font-size:16px;font-weight:600;border-radius:10px;box-shadow:0 4px 14px rgba(5,150,105,0.4);">Ver PDF</a>' +
+    '<a href="' + fileUrl + '" style="display:inline-block;padding:14px 32px;background:#059669;color:#ffffff!important;text-decoration:none;font-size:16px;font-weight:600;border-radius:10px;box-shadow:0 4px 14px rgba(5,150,105,0.4);">Descargar Excel</a>' +
     '</p>' +
-    '<p style="margin:0;color:#64748b;font-size:13px;text-align:center;">O copi&aacute; este enlace: <a href="' + pdfUrl + '" style="color:#059669;word-break:break-all;">' + pdfUrl + '</a></p>' +
+    '<p style="margin:0;color:#64748b;font-size:13px;text-align:center;">O copi&aacute; este enlace: <a href="' + fileUrl + '" style="color:#059669;word-break:break-all;">' + fileUrl + '</a></p>' +
     '</td></tr>' +
     '<tr><td style="padding:16px 24px;background:#ecfdf5;border-top:1px solid #a7f3d0;">' +
     '<p style="margin:0;color:#047857;font-size:12px;">RRHH &middot; Organizaci&oacute;n de Almuerzos</p>' +
@@ -813,7 +813,28 @@ function adminSendOpening(data) {
   }
 }
 
-// Genera PDF del resumen y devuelve URL de Gmail para enviarlo
+function colorFondoCeldaMenu_(clave) {
+  if (!clave) return '';
+  var c = String(clave);
+  if (c === 'Menu 1') return '#fecaca';
+  if (c === 'Menu 2') return '#bbf7d0';
+  if (c === 'Menu 3') return '#bfdbfe';
+  if (c === 'Menu 4') return '#fde68a';
+  if (c === 'Menu 5') return '#ddd6fe';
+  if (c === 'REMOTO') return '#a5f3fc';
+  if (c === 'SIN VIANDA') return '#e2e8f0';
+  return '';
+}
+
+function sumaMenus1a5PorDia_(contadorPorDia, td) {
+  var sum = 0;
+  for (var n = 1; n <= 5; n++) {
+    sum += (contadorPorDia[td]['Menu ' + n] || 0);
+  }
+  return sum;
+}
+
+// Genera Excel del resumen y devuelve URL de Gmail para enviarlo
 function adminPdfGmail(weekKey) {
   try {
     var wk = normalizarSemana(weekKey || '');
@@ -867,41 +888,47 @@ function adminPdfGmail(weekKey) {
     });
     var totalPorDia = [0, 0, 0, 0, 0];
     for (var td = 0; td < 5; td++) {
-      var keysD = Object.keys(contadorPorDia[td]);
-      for (var tk = 0; tk < keysD.length; tk++) {
-        totalPorDia[td] += contadorPorDia[td][keysD[tk]] || 0;
-      }
+      totalPorDia[td] = sumaMenus1a5PorDia_(contadorPorDia, td);
     }
-    filas.push(['TOTAL VIANDAS', '', totalPorDia[0], totalPorDia[1], totalPorDia[2], totalPorDia[3], totalPorDia[4], '']);
+    filas.push(['TOTAL MENÚS (solo 1 a 5)', '', totalPorDia[0], totalPorDia[1], totalPorDia[2], totalPorDia[3], totalPorDia[4], '']);
     hoja.getRange(1, 1, filas.length, 8).setValues(filas);
     hoja.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#1e3a5f').setFontColor('#ffffff');
     var nUser = filtrados.length;
     for (var r = 2; r <= nUser + 1; r++) {
-      hoja.getRange(r, 1, 1, 8).setBackground(r % 2 === 0 ? '#f8fafc' : '#ffffff');
+      var zebra = r % 2 === 0 ? '#f8fafc' : '#ffffff';
+      hoja.getRange(r, 1, 1, 2).setBackground(zebra);
+      for (var cc = 3; cc <= 7; cc++) {
+        var rawC = hoja.getRange(r, cc).getValue();
+        var claveC = extraerNumeroMenu(String(rawC || ''));
+        var bgC = colorFondoCeldaMenu_(claveC);
+        hoja.getRange(r, cc).setBackground(bgC || zebra);
+      }
+      hoja.getRange(r, 8).setBackground(zebra);
     }
     for (var ri = 0; ri < filas.length; ri++) {
       var lbl = (filas[ri][0] || '').toString();
-      if (lbl.indexOf('RESUMEN') !== -1 || lbl.indexOf('TOTAL VIANDAS') !== -1) {
+      if (lbl.indexOf('RESUMEN') !== -1 || lbl.indexOf('TOTAL MEN') !== -1) {
         hoja.getRange(ri + 1, 1, 1, 8).setFontWeight('bold').setBackground('#e2e8f0');
       }
     }
     hoja.autoResizeColumns(1, 8);
     SpreadsheetApp.flush();
-    var pdfBlob = ssNew.getAs('application/pdf');
     var folder = obtenerCarpetaMenuesPdf_();
-    var pdfFile = folder.createFile(pdfBlob.setName('Menus ' + (wk || 'semana') + '.pdf'));
-    DriveApp.getRootFolder().removeFile(DriveApp.getFileById(ssNew.getId()));
-    var pdfUrl = pdfFile.getUrl();
+    var sid = ssNew.getId();
+    var excelBlob = DriveApp.getFileById(sid).getAs(MimeType.MICROSOFT_EXCEL);
+    var excelFile = folder.createFile(excelBlob.setName('Menus ' + (wk || 'semana') + '.xlsx'));
+    DriveApp.getRootFolder().removeFile(DriveApp.getFileById(sid));
+    var excelUrl = excelFile.getUrl();
     var subject = 'Men\u00fa semanal - ' + (wk || 'semana');
-    var htmlBody = crearHtmlMailProveedor(pdfUrl, wk || 'semana');
-    var bodyPlain = 'Resumen de menús elegidos para la semana.\n\nVer PDF: ' + pdfUrl;
+    var htmlBody = crearHtmlMailProveedor(excelUrl, wk || 'semana');
+    var bodyPlain = 'Resumen de menús elegidos para la semana.\n\nDescargar Excel: ' + excelUrl;
     try {
       MailApp.sendEmail(COCINA_EMAIL, subject, bodyPlain, { htmlBody: htmlBody });
     } catch (mailErr) {
       Logger.log('Mail proveedor: ' + mailErr);
     }
     var gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(bodyPlain);
-    return ContentService.createTextOutput(JSON.stringify({ ok: true, gmailUrl: gmailUrl, pdfUrl: pdfUrl })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, gmailUrl: gmailUrl, excelUrl: excelUrl, pdfUrl: excelUrl })).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
     Logger.log('adminPdfGmail: ' + e);
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON);
@@ -915,7 +942,7 @@ function adminPdfGmailDia(weekKey) {
     if (dayIdx === null) {
       return ContentService.createTextOutput(JSON.stringify({
         ok: false,
-        error: 'Hoy es fin de semana. El PDF del d\u00eda solo aplica de lunes a viernes (Argentina).'
+        error: 'Hoy es fin de semana. El Excel del d\u00eda solo aplica de lunes a viernes (Argentina).'
       })).setMimeType(ContentService.MimeType.JSON);
     }
     var pack = obtenerFiltradosOrdenadosParaPdf_(wk);
@@ -959,23 +986,29 @@ function adminPdfGmailDia(weekKey) {
       var c = contadorDia[m] || 0;
       if (c > 0) {
         filas.push(['', m, c, '', '', '', '', '']);
-        sumTotal += c;
+        if (/^Menu [1-5]$/.test(m)) sumTotal += c;
       }
     });
-    filas.push(['', 'TOTAL ' + dayLabel, sumTotal, '', '', '', '', '']);
+    filas.push(['', 'TOTAL MENÚS (solo 1 a 5)', sumTotal, '', '', '', '', '']);
     hoja.getRange(1, 1, filas.length, 8).setValues(filas);
     hoja.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#1e3a5f').setFontColor('#ffffff');
     hoja.getRange(2, 1, 1, 8).setFontWeight('bold').setBackground('#e2e8f0');
     var nPed = filtrados.length;
     for (var r = 3; r <= nPed + 2; r++) {
-      hoja.getRange(r, 1, 1, 8).setBackground(r % 2 === 0 ? '#f8fafc' : '#ffffff');
+      var zebraD = r % 2 === 0 ? '#f8fafc' : '#ffffff';
+      hoja.getRange(r, 1, 1, 2).setBackground(zebraD);
+      var rawCell = hoja.getRange(r, 3).getValue();
+      var claveD = extraerNumeroMenu(String(rawCell || ''));
+      var bgD = colorFondoCeldaMenu_(claveD);
+      hoja.getRange(r, 3).setBackground(bgD || zebraD);
+      hoja.getRange(r, 4, 1, 8).setBackground(zebraD);
     }
     for (var ri = 0; ri < filas.length; ri++) {
       var a = (filas[ri][0] || '').toString();
       var b = (filas[ri][1] || '').toString();
       if (ri > 0 && a.indexOf('RESUMEN') !== -1) {
         hoja.getRange(ri + 1, 1, 1, 8).setFontWeight('bold').setBackground('#e2e8f0');
-      } else if (b.indexOf('TOTAL ') === 0) {
+      } else if (b.indexOf('TOTAL') === 0) {
         hoja.getRange(ri + 1, 1, 1, 8).setFontWeight('bold');
       }
     }
@@ -983,21 +1016,22 @@ function adminPdfGmailDia(weekKey) {
     hoja.getRange(2, 1, 1, 8).setFontWeight('bold').setBackground('#e2e8f0');
     hoja.autoResizeColumns(1, 8);
     SpreadsheetApp.flush();
-    var pdfBlob = ssNew.getAs('application/pdf');
     var folder = obtenerCarpetaMenuesPdf_();
-    var pdfFile = folder.createFile(pdfBlob.setName('Menus ' + dayLabel + ' ' + (wk || 'semana') + '.pdf'));
-    DriveApp.getRootFolder().removeFile(DriveApp.getFileById(ssNew.getId()));
-    var pdfUrl = pdfFile.getUrl();
+    var sidD = ssNew.getId();
+    var excelBlobD = DriveApp.getFileById(sidD).getAs(MimeType.MICROSOFT_EXCEL);
+    var excelFileD = folder.createFile(excelBlobD.setName('Menus ' + dayLabel + ' ' + (wk || 'semana') + '.xlsx'));
+    DriveApp.getRootFolder().removeFile(DriveApp.getFileById(sidD));
+    var excelUrlD = excelFileD.getUrl();
     var subject = 'Men\u00fa d\u00eda (' + dayLabel + ') - ' + (wk || 'semana');
-    var htmlBody = crearHtmlMailProveedorDia(pdfUrl, wk || 'semana', dayLabel);
-    var bodyPlain = 'Resumen de men\u00fas para ' + dayLabel + ' (semana ' + (wk || '') + ').\n\nVer PDF: ' + pdfUrl;
+    var htmlBody = crearHtmlMailProveedorDia(excelUrlD, wk || 'semana', dayLabel);
+    var bodyPlain = 'Resumen de men\u00fas para ' + dayLabel + ' (semana ' + (wk || '') + ').\n\nDescargar Excel: ' + excelUrlD;
     try {
       MailApp.sendEmail(COCINA_EMAIL, subject, bodyPlain, { htmlBody: htmlBody });
     } catch (mailErr) {
       Logger.log('Mail proveedor d\u00eda: ' + mailErr);
     }
     var gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(bodyPlain);
-    return ContentService.createTextOutput(JSON.stringify({ ok: true, gmailUrl: gmailUrl, pdfUrl: pdfUrl, dayLabel: dayLabel })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, gmailUrl: gmailUrl, excelUrl: excelUrlD, pdfUrl: excelUrlD, dayLabel: dayLabel })).setMimeType(ContentService.MimeType.JSON);
   } catch (e) {
     Logger.log('adminPdfGmailDia: ' + e);
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'Error: ' + e.message })).setMimeType(ContentService.MimeType.JSON);
