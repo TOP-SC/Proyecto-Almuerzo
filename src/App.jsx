@@ -159,8 +159,17 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'get_cycle_status', weekKey }),
       })
-        .then(r => r.json())
-        .then(d => { if (d && d.ok !== undefined) setCycleOpen(d.abierto); })
+        .then(async (r) => {
+          const t = await r.text();
+          try {
+            return JSON.parse(t);
+          } catch {
+            return null;
+          }
+        })
+        .then((d) => {
+          if (d && d.ok !== undefined) setCycleOpen(d.abierto);
+        })
         .catch(() => setCycleOpen(false)); // En error, asumir cerrado (más seguro)
     } else {
       setCycleOpen(true); // Sin token = pantalla bienvenida, no bloqueamos
