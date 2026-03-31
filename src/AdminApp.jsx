@@ -52,6 +52,8 @@ function AdminApp() {
   const [addForm, setAddForm] = useState({ nombre: '', turno: '1', selections: {} });
   const [actionLoading, setActionLoading] = useState(null);
   const [weekKeyOverride, setWeekKeyOverride] = useState(() => getMenuWeek().weekKey);
+  /** Valor del desplegable antes de pulsar «Aplicar semana» */
+  const [weekKeyDraft, setWeekKeyDraft] = useState(() => getMenuWeek().weekKey);
   /** 'auto' = día hábil actual en Argentina; 0–4 = Lunes–Viernes para Excel del día */
   const [excelDiaIndex, setExcelDiaIndex] = useState('auto');
   const [lastDebug, setLastDebug] = useState(null);
@@ -85,11 +87,13 @@ function AdminApp() {
 
   /** Semanas anteriores al 30/03/2026 ya no están en el desplegable: alinear estado al cargar. */
   useEffect(() => {
-    setWeekKeyOverride((prev) => {
+    const fix = (prev) => {
       const t = prev.trim();
       if (t && t < MIN_ADMIN_WEEK_MONDAY) return getMenuWeek().weekKey;
       return prev;
-    });
+    };
+    setWeekKeyOverride(fix);
+    setWeekKeyDraft(fix);
   }, []);
 
   useEffect(() => {
@@ -193,6 +197,17 @@ function AdminApp() {
     } finally {
       setLoading(false);
     }
+  };
+
+  /** Aplica la semana elegida en el desplegable y vuelve a cargar pedidos (o solo refresca si ya estaba aplicada). */
+  const applyWeekSelection = () => {
+    const d = weekKeyDraft.trim();
+    const a = weekKeyOverride.trim();
+    if (d === a) {
+      loadUsers();
+      return;
+    }
+    setWeekKeyOverride(weekKeyDraft);
   };
 
   const loadMenu = async () => {
@@ -629,10 +644,12 @@ function AdminApp() {
               </label>
               <select
                 id="admin-week-select"
-                value={weekKeyOverride}
-                onChange={(e) => setWeekKeyOverride(e.target.value)}
-                className="min-w-[240px] max-w-[min(100%,420px)] px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                title="Por defecto: semana vigente. Podés revisar semanas pasadas abajo. «Todas las semanas» al final es opcional (listado sin filtro)."
+                value={weekKeyDraft}
+                onChange={(e) => setWeekKeyDraft(e.target.value)}
+                className={`min-w-[240px] max-w-[min(100%,420px)] px-2 py-1.5 border rounded-lg text-sm bg-white text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+                  weekKeyDraft.trim() !== weekKeyOverride.trim() ? 'border-amber-400 ring-1 ring-amber-200' : 'border-slate-200'
+                }`}
+                title="Elegí la semana y pulsá «Aplicar semana» para cargar datos. «Todas las semanas» al final es opcional (listado sin filtro)."
               >
                 <optgroup label="Semana vigente">
                   <option value={weekSelectGroups.current}>
@@ -650,13 +667,17 @@ function AdminApp() {
                   <option value="">Todas las semanas (sin filtro)</option>
                 </optgroup>
               </select>
-              <span className="text-xs text-slate-500 hidden sm:inline">
-                {weekKeyOverride.trim() === ''
-                  ? 'Listado sin filtro de semana'
-                  : activeWeekKey === menuWeek.weekKey
-                    ? 'Semana vigente'
-                    : 'Histórico'}
-              </span>
+              <button
+                type="button"
+                onClick={applyWeekSelection}
+                disabled={loading}
+                className="shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                {loading ? 'Cargando…' : weekKeyDraft.trim() === weekKeyOverride.trim() ? 'Actualizar datos' : 'Aplicar semana'}
+              </button>
+              {weekKeyDraft.trim() !== weekKeyOverride.trim() && (
+                <span className="text-xs text-amber-700 font-medium">Selección sin aplicar</span>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <button
