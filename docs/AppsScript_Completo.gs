@@ -836,9 +836,19 @@ function sumaMenus1a5PorDia_(contadorPorDia, td) {
 
 /**
  * Convierte un Google Sheet a Blob .xlsx.
- * DriveApp.getFileById(id).getAs(MimeType.MICROSOFT_EXCEL) ya no es compatible con spreadsheets.
+ * 1) Si ten\u00e9s habilitada la API de Drive (Servicios avanzados), usa Drive.Files.export (sin UrlFetch).
+ * 2) Si no, UrlFetch: necesit\u00e1s script.external_request en appsscript.json (ver docs/appsscript.json).
  */
 function spreadsheetToXlsxBlob_(spreadsheetId) {
+  var xlsxMime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  try {
+    if (typeof Drive !== 'undefined' && Drive.Files && typeof Drive.Files.export === 'function') {
+      var blobDrive = Drive.Files.export(spreadsheetId, xlsxMime);
+      if (blobDrive) return blobDrive;
+    }
+  } catch (eDrive) {
+    Logger.log('spreadsheetToXlsxBlob_ Drive.Files.export: ' + eDrive);
+  }
   var url = 'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(spreadsheetId) + '/export?format=xlsx';
   var token = ScriptApp.getOAuthToken();
   var response = UrlFetchApp.fetch(url, {
@@ -847,7 +857,7 @@ function spreadsheetToXlsxBlob_(spreadsheetId) {
   });
   var code = response.getResponseCode();
   if (code !== 200) {
-    throw new Error('Export xlsx fall\u00f3 (HTTP ' + code + '). Revis\u00e1 permisos del script sobre Drive/Sheets.');
+    throw new Error('Export xlsx fall\u00f3 (HTTP ' + code + '). Agreg\u00e1 docs/appsscript.json al proyecto o habilit\u00e1 Drive API en Servicios.');
   }
   return response.getBlob();
 }
