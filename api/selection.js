@@ -1,7 +1,42 @@
-// En Vercel: Project → Settings → Environment Variables → APPS_SCRIPT_URL = tu URL /exec (sin tocar código en cada despliegue)
-const APPS_SCRIPT_URL =
-  (typeof process !== 'undefined' && process.env && process.env.APPS_SCRIPT_URL) ||
+// En Vercel: Project → Settings → Environment Variables → APPS_SCRIPT_URL = URL /exec (script.google.com o script.googleusercontent.com)
+const APPS_SCRIPT_URL = (
+  (typeof process !== 'undefined' && process.env && String(process.env.APPS_SCRIPT_URL || '').trim()) ||
   'https://script.google.com/macros/s/AKfycbzGT2wpze1xsDR4AdFHHPOmHq5p9tpizMgCVeti364Dajk4A5cBb7_EKlyKGwLPBQ/exec'
+).trim()
+
+/**
+ * POST a Web App de Apps Script: la primera URL suele responder 302 a script.googleusercontent.com.
+ * Si fetch sigue el redirect automático, a veces el cuerpo POST se pierde y la respuesta es HTML (no JSON).
+ * Por eso seguimos redirecciones a mano y repetimos el mismo POST en la URL final.
+ */
+async function postToAppsScript(bodyObj) {
+  const payload = JSON.stringify(bodyObj)
+  const headers = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  }
+  let url = APPS_SCRIPT_URL
+  let res = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: payload,
+    redirect: 'manual',
+  })
+  for (let hop = 0; hop < 5; hop++) {
+    if (res.status !== 301 && res.status !== 302 && res.status !== 303 && res.status !== 307 && res.status !== 308) break
+    const loc = res.headers.get('location')
+    if (!loc) break
+    const nextUrl = loc.startsWith('http') ? loc : new URL(loc, url).href
+    url = nextUrl
+    res = await fetch(nextUrl, {
+      method: 'POST',
+      headers,
+      body: payload,
+      redirect: 'manual',
+    })
+  }
+  return res
+}
 
 async function getBody(req) {
   if (req.body != null && typeof req.body === 'object') return req.body
@@ -43,15 +78,7 @@ export default async function handler(req, res) {
     const body = await getBody(req)
     let response
     try {
-      response = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(body),
-        redirect: 'follow',
-      })
+      response = await postToAppsScript(body)
     } catch (fetchErr) {
       const fallback = getFallbackResponse(body)
       if (fallback) {
@@ -72,7 +99,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ ...fallback, debug: { ...dbg, proxyReason: 'invalid_json' } })
       }
       let errMsg =
-        'Apps Script no devolvió JSON. Actualizá en Vercel la variable APPS_SCRIPT_URL con la URL /exec del despliegue actual (Apps Script → Desplegar → Gestionar implementaciones). Acceso: «Cualquier persona».'
+        'Apps Script no devolvió JSON. En Vercel, variable APPS_SCRIPT_URL = URL /exec del despliegue actual (Apps Script → Desplegar → Gestionar implementaciones). Acceso: «Cualquier persona». Si sigue igual, probá pegar la URL que empiece con https://script.googleusercontent.com/macros/... (a veces Google la muestra al desplegar).'
       if (text.trim().startsWith('<!')) {
         const m = text.match(/class="errorMessage"[^>]*>([^<]+)/) || text.match(/Exception:[^<]*/i)
         if (m) errMsg = 'Apps Script: ' + (m[1] || m[0]).trim().slice(0, 200)
