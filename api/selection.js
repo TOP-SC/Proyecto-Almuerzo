@@ -58,15 +58,20 @@ function execUrlCandidates() {
   return [...new Set(list)]
 }
 
+function requestHeadersForAppsScript(baseUrl, headers) {
+  return {
+    ...headers,
+    Referer: baseUrl,
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  }
+}
+
 async function postOnceWithRedirects(baseUrl, payload, headers) {
   let url = baseUrl
   let res = await fetch(url, {
     method: 'POST',
-    headers: {
-      ...headers,
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    },
+    headers: requestHeadersForAppsScript(baseUrl, headers),
     body: payload,
     redirect: 'manual',
   })
@@ -85,11 +90,7 @@ async function postOnceWithRedirects(baseUrl, payload, headers) {
     url = nextUrl
     res = await fetch(nextUrl, {
       method: 'POST',
-      headers: {
-        ...headers,
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
+      headers: requestHeadersForAppsScript(baseUrl, headers),
       body: payload,
       redirect: 'manual',
     })
@@ -99,33 +100,54 @@ async function postOnceWithRedirects(baseUrl, payload, headers) {
 
 /**
  * POST a Web App: prueba usercontent primero; si la respuesta no es JSON, prueba la URL original.
+ * Devuelve intentos (host, status) para depurar HTML de Google sin ejecutar tu doPost.
  */
 async function postToAppsScript(bodyObj) {
   const payload = JSON.stringify(bodyObj)
   const headers = {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json; charset=utf-8',
     Accept: 'application/json',
   }
+  const fetchAttempts = []
   let lastRes = null
   let lastText = ''
   for (const baseUrl of execUrlCandidates()) {
+    let host = '?'
+    try {
+      host = new URL(baseUrl).hostname
+    } catch (_) {}
     try {
       const res = await postOnceWithRedirects(baseUrl, payload, headers)
       const text = await res.text()
       lastRes = res
       lastText = text
-      const normalized = stripJsonBom(text)
+      const t = stripJsonBom(text)
+      const looksHtml = t.startsWith('<!') || t.startsWith('<html')
+      fetchAttempts.push({
+        host,
+        status: res.status,
+        ok: res.ok,
+        contentType: (res.headers.get('content-type') || '').slice(0, 80),
+        looksHtml,
+        bodyPreview: t.slice(0, 100).replace(/\s+/g, ' '),
+      })
       try {
-        JSON.parse(normalized)
-        return new Response(normalized, { status: res.status, headers: { 'Content-Type': 'application/json' } })
+        JSON.parse(t)
+        return {
+          response: new Response(t, { status: res.status, headers: { 'Content-Type': 'application/json' } }),
+          fetchAttempts,
+        }
       } catch (_) {
-        /* seguir con siguiente candidato */
+        /* siguiente candidato */
       }
-    } catch (_) {
-      /* siguiente */
+    } catch (e) {
+      fetchAttempts.push({ host, error: (e && e.message) ? String(e.message).slice(0, 120) : 'fetch_error' })
     }
   }
-  return new Response(lastText, { status: lastRes ? lastRes.status : 502 })
+  return {
+    response: new Response(lastText, { status: lastRes ? lastRes.status : 502 }),
+    fetchAttempts,
+  }
 }
 
 async function getBody(req) {
@@ -215,8 +237,11 @@ export default async function handler(req, res) {
   try {
     const body = await getBody(req)
     let response
+    let fetchAttempts = []
     try {
-      response = await postToAppsScript(body)
+      const postResult = await postToAppsScript(body)
+      response = postResult.response
+      fetchAttempts = postResult.fetchAttempts || []
     } catch (fetchErr) {
       const fallback = getFallbackResponse(body)
       if (fallback) {
@@ -260,8 +285,11 @@ export default async function handler(req, res) {
           proxyReason: 'invalid_json',
           status: response.status,
           tip,
+          notaAppsscriptJson:
+            'appsscript.json (V8 y scopes) no provoca esta página HTML de Drive: esa respuesta la genera Google antes de ejecutar tu .gs. Revisá fetchAttempts (host/status/looksHtml).',
           snippet: text.slice(0, 600),
           appsScriptUrlFromEnv: envSet,
+          fetchAttempts,
           ...execInfo,
         },
       }
