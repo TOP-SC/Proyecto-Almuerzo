@@ -39,15 +39,21 @@ function stripJsonBom(text) {
   return text.replace(/^\uFEFF/, '').trim()
 }
 
-/** Variantes de URL /exec: primero la configurada, luego el host alternativo. */
+/**
+ * Variantes de URL /exec.
+ * Desde servidores (Vercel), script.google.com a veces redirige mal y termina en HTML de Drive;
+ * script.googleusercontent.com suele responder doPost sin ese problema → probarlo primero.
+ */
 function execUrlCandidates() {
   const u = APPS_SCRIPT_URL
   const list = []
-  list.push(u)
   if (u.includes('script.google.com')) {
     list.push(u.replace('script.google.com', 'script.googleusercontent.com'))
-  } else if (u.includes('script.googleusercontent.com')) {
-    list.push(u.replace('script.googleusercontent.com', 'script.google.com'))
+  }
+  list.push(u)
+  if (u.includes('script.googleusercontent.com')) {
+    const alt = u.replace('script.googleusercontent.com', 'script.google.com')
+    if (alt !== u) list.push(alt)
   }
   return [...new Set(list)]
 }
@@ -58,8 +64,8 @@ async function postOnceWithRedirects(baseUrl, payload, headers) {
     method: 'POST',
     headers: {
       ...headers,
-      // Algunos entornos bloquean peticiones sin User-Agent; Apps Script suele aceptar igual.
-      'User-Agent': 'Mozilla/5.0 (compatible; MaidaMenu/1.0; +https://vercel.com)',
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     },
     body: payload,
     redirect: 'manual',
@@ -69,12 +75,20 @@ async function postOnceWithRedirects(baseUrl, payload, headers) {
     const loc = res.headers.get('location')
     if (!loc) break
     const nextUrl = loc.startsWith('http') ? loc : new URL(loc, url).href
+    // No seguir hacia Drive/Docs con POST: devuelve HTML "Page Not Found" y rompe JSON.
+    if (
+      /docs\.google\.com|drive\.google\.com|accounts\.google\.com/i.test(nextUrl) &&
+      !/script\.google/i.test(nextUrl)
+    ) {
+      break
+    }
     url = nextUrl
     res = await fetch(nextUrl, {
       method: 'POST',
       headers: {
         ...headers,
-        'User-Agent': 'Mozilla/5.0 (compatible; MaidaMenu/1.0; +https://vercel.com)',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
       body: payload,
       redirect: 'manual',
