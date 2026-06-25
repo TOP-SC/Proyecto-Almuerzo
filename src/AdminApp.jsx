@@ -327,7 +327,7 @@ function AdminApp() {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'admin_send_opening', adminSecret, ...mailPayload() }),
+        body: JSON.stringify({ action: 'admin_send_opening', adminSecret, weekKey: activeWeekKey, ...mailPayload() }),
       });
       const data = await res.json().catch(() => ({}));
       if (data.ok) {
@@ -774,6 +774,7 @@ function AdminApp() {
             <EmpresaView
               sommierUsers={usersThisWeek.filter(u => (u.email || '').toLowerCase().includes('@sommiercenter'))}
               btimeUsers={usersThisWeek.filter(u => (u.email || '').toLowerCase().includes('@bedtime'))}
+              weekLabel={weekRangeLabelFromMondayKey(activeWeekKey)}
             />
           )}
           {activeView === 'listado' && (
@@ -1102,6 +1103,9 @@ function DashboardView({
             Cerrar
           </button>
         </div>
+        <p className="text-xs text-slate-500 mt-3">
+          El ciclo aplica a la semana elegida arriba ({weekLabel}). Los recordatorios y mails de apertura incluyen esa semana en el link del colaborador.
+        </p>
       </div>
 
       {/* Gráficos */}
@@ -1302,7 +1306,22 @@ function menuSummary(user) {
   return days.map(d => extraerMenuShort(user[d])).join(' · ');
 }
 
-function EmpresaView({ sommierUsers, btimeUsers }) {
+const MENU_DAY_KEYS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
+
+/** Cuenta solo viandas (MENU 1–5, etc.); excluye REMOTO, SIN VIANDA y similares. */
+function countViandasPedidas(users) {
+  let total = 0;
+  (users || []).forEach((u) => {
+    MENU_DAY_KEYS.forEach((d) => {
+      const val = (u[d] || '').toString();
+      if (/MENU\s*\d+/i.test(val)) total += 1;
+    });
+  });
+  return total;
+}
+
+function EmpresaView({ sommierUsers, btimeUsers, weekLabel }) {
+  const btimeViandasTotal = countViandasPedidas(btimeUsers);
   return (
     <div className="max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg border border-slate-100 p-4">
@@ -1333,6 +1352,14 @@ function EmpresaView({ sommierUsers, btimeUsers }) {
             </div>
           ))}
           {btimeUsers.length === 0 && <p className="text-slate-400 py-4">Ninguno</p>}
+        </div>
+        <div className="mt-4 pt-3 border-t border-amber-200/80 bg-amber-50 rounded-xl px-4 py-3">
+          <p className="text-xs font-medium text-amber-900/70 uppercase tracking-wide">Total viandas @bedtime</p>
+          <p className="text-2xl font-semibold text-amber-950 tabular-nums mt-0.5">{btimeViandasTotal}</p>
+          <p className="text-xs text-amber-800/60 mt-1">
+            Solo menús (Menu 1–5). Sin REMOTO ni SIN VIANDA.
+            {weekLabel ? ` · Semana ${weekLabel}` : ''}
+          </p>
         </div>
       </div>
     </div>

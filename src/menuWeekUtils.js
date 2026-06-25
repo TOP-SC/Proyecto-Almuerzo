@@ -56,9 +56,16 @@ export function getMenuWeek() {
   };
 }
 
-/** Fechas DD/MM de lunes a viernes de la misma semana que `getMenuWeek()` (para títulos LUNES 30/03 …). */
-export function getMenuWeekDayDatesDDMM() {
-  const { weekStart } = getMenuWeek();
+/** Lunes de una semana en formato YYYY-MM-DD; null si el formato no es válido. */
+export function parseWeekKeyMonday(weekKeyStr) {
+  if (!weekKeyStr || !/^\d{4}-\d{2}-\d{2}$/.test(weekKeyStr)) return null;
+  const [y, m, d] = weekKeyStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Fechas DD/MM de lunes a viernes para un lunes YYYY-MM-DD (o la semana vigente si falta). */
+export function getMenuWeekDayDatesDDMMFromKey(weekKeyStr) {
+  const weekStart = parseWeekKeyMonday(weekKeyStr) || getMenuWeek().weekStart;
   const dates = [];
   for (let i = 0; i < 5; i++) {
     const date = new Date(weekStart);
@@ -68,6 +75,39 @@ export function getMenuWeekDayDatesDDMM() {
     dates.push(`${day}/${month}`);
   }
   return dates;
+}
+
+/** Viernes de la semana indicada por lunes YYYY-MM-DD. */
+export function getFridayFromWeekKey(weekKeyStr) {
+  const weekStart = parseWeekKeyMonday(weekKeyStr);
+  if (!weekStart) return getMenuWeek().friday;
+  const friday = new Date(weekStart);
+  friday.setDate(friday.getDate() + 4);
+  return friday;
+}
+
+/**
+ * Semana efectiva para la app del colaborador: parámetro ?week= o ?weekKey= en la URL, o la vigente.
+ */
+export function resolveEffectiveMenuWeek(searchString) {
+  const params = new URLSearchParams(searchString || (typeof window !== 'undefined' ? window.location.search : ''));
+  const fromUrl = normalizeWeekKeyToIso((params.get('week') || params.get('weekKey') || '').trim());
+  const current = getMenuWeek();
+  if (fromUrl && /^\d{4}-\d{2}-\d{2}$/.test(fromUrl)) {
+    return {
+      weekKey: fromUrl,
+      label: weekLongLabelFromMondayKey(fromUrl),
+      friday: getFridayFromWeekKey(fromUrl),
+      weekStart: parseWeekKeyMonday(fromUrl),
+      fromUrl: true,
+    };
+  }
+  return { ...current, fromUrl: false };
+}
+
+/** Fechas DD/MM de lunes a viernes de la misma semana que `getMenuWeek()` (para títulos LUNES 30/03 …). */
+export function getMenuWeekDayDatesDDMM() {
+  return getMenuWeekDayDatesDDMMFromKey(getMenuWeek().weekKey);
 }
 
 const MESES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];

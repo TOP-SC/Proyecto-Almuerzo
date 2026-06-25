@@ -39,6 +39,18 @@ function generateToken_() {
   return Utilities.getUuid();
 }
 
+/** Link personalizado de la app; weekKey opcional (lunes YYYY-MM-DD) para ciclos distintos a la semana calendario. */
+function buildUserAppUrl_(token, email, nombre, turno, weekKeyOptional) {
+  var url = APP_BASE_URL
+    + '?u=' + encodeURIComponent(token)
+    + '&email=' + encodeURIComponent(email)
+    + '&name=' + encodeURIComponent(nombre)
+    + '&turno=' + turno;
+  var wk = normalizarSemana(weekKeyOptional || '');
+  if (wk) url += '&week=' + encodeURIComponent(wk);
+  return url;
+}
+
 // Obtiene la hoja de usuarios (mismo spreadsheet que obtenerSpreadsheetPrincipal).
 function obtenerHojaUsuarios() {
   var ssConst = obtenerSpreadsheetPrincipal();
@@ -250,11 +262,7 @@ function enviarLinksMenuSemanal() {
       continue;
     }
 
-    var url = APP_BASE_URL
-      + '?u=' + encodeURIComponent(token)
-      + '&email=' + encodeURIComponent(email)
-      + '&name=' + encodeURIComponent(nombre)
-      + '&turno=' + turno;
+    var url = buildUserAppUrl_(token, email, nombre, turno, '');
 
     var subject = 'Men\u00fa semanal disponible';
     var htmlBody = crearHtmlMailUsuario(nombre, url);
@@ -815,6 +823,7 @@ function adminSendOpening(data) {
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'No hay usuarios en la hoja' })).setMimeType(ContentService.MimeType.JSON);
     }
     var dataRows = sheet.getRange(2, 1, lastRow, 4).getValues();
+    var weekKeyForLink = normalizarSemana(data.weekKey || '');
     var enviados = 0;
     dataRows.forEach(function(row) {
       var email = (row[0] || '').toString().trim();
@@ -822,7 +831,7 @@ function adminSendOpening(data) {
       var token = (row[2] || '').toString();
       var turno = (row[3] === 2 || row[3] === '2') ? 2 : 1;
       if (!email || !token) return;
-      var url = APP_BASE_URL + '?u=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(email) + '&name=' + encodeURIComponent(nombre) + '&turno=' + turno;
+      var url = buildUserAppUrl_(token, email, nombre, turno, weekKeyForLink);
       var subject = 'Men\u00fa semanal disponible';
       var htmlBody = crearHtmlMailUsuario(nombre, url);
       enviarMailAdmin_({
@@ -1162,7 +1171,7 @@ function adminSendReminder(weekKey, emailsFiltro, data) {
       var token = (row[2] || '').toString();
       if (!token) return;
       var turno = (row[3] === 2 || row[3] === '2') ? 2 : 1;
-      var url = APP_BASE_URL + '?u=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(row[0]) + '&name=' + encodeURIComponent(nombre) + '&turno=' + turno;
+      var url = buildUserAppUrl_(token, row[0], nombre, turno, wk);
       var subject = 'Recordatorio: Men\u00fa semanal pendiente';
       var body = 'Hola ' + nombre + ',\n\nA\u00fan no hemos recibido tu selecci\u00f3n de men\u00fa para esta semana. Por favor ingres\u00e1 al siguiente enlace para elegir:\n\n' + url + '\n\nSaludos,\nRRHH / Organizaci\u00f3n de Almuerzos';
       var htmlBody = crearHtmlMailRecordatorio(nombre, url);

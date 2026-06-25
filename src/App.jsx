@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Home, X, ArrowRight, Check, Send, Pizza, Beef, Fish, Apple, Cookie, Soup, Salad, Sandwich } from 'lucide-react';
 import { DriveService } from './driveService.js';
 import { GitHubService } from './driveService.js';
-import { getMenuWeek } from './menuWeekUtils.js';
+import {
+  getMenuWeekDayDatesDDMMFromKey,
+  resolveEffectiveMenuWeek,
+} from './menuWeekUtils.js';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState('welcome');
@@ -26,10 +29,20 @@ function App() {
   const TURNO_LABELS = { '1': 'Turno 1 (13:00 - 14:00)', '2': 'Turno 2 (14:00 - 15:00)' };
   const API_URL = import.meta.env.VITE_API_URL || '/api/selection';
 
-  const menuWeek = getMenuWeek();
+  const menuWeek = resolveEffectiveMenuWeek();
   const weekNumber = menuWeek.label;
   const weekKey = menuWeek.weekKey;
   const fridayStr = menuWeek.friday.getDate().toString().padStart(2,'0') + '/' + (menuWeek.friday.getMonth()+1).toString().padStart(2,'0');
+
+  const patchMenuDayLabels = (menu, wk) => {
+    if (!menu?.length || !wk) return menu;
+    const dates = getMenuWeekDayDatesDDMMFromKey(wk);
+    const dayNames = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES'];
+    return menu.map((day, i) => ({
+      ...day,
+      day: `${dayNames[i]} ${dates[i]}`,
+    }));
+  };
 
   const hexToRgba = (hex, alpha) => {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -68,7 +81,7 @@ function App() {
     try {
       setIsLoading(true);
       const menuData = await menuService.processAndSaveMenu();
-      setWeeklyMenu(menuData);
+      setWeeklyMenu(patchMenuDayLabels(menuData, weekKey));
       setLastUpdate(new Date());
       setIsLoading(false);
     } catch (error) {
